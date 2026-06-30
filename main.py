@@ -2,10 +2,18 @@ from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
 import sqlite3, os, hashlib, secrets
 from datetime import datetime
+from github_sync import mark_dirty, start_background_sync
 
 app = Flask(__name__, static_folder='.')
 app.secret_key = 'cs2uz_pro_vveb_secret_2024_x3d'
 CORS(app, supports_credentials=True, origins='*')
+
+@app.after_request
+def sync_db_on_write(response):
+    # Ma'lumotni o'zgartiruvchi so'rovlardan keyin GitHub'ga push uchun belgilab qo'yamiz
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE') and response.status_code < 400:
+        mark_dirty()
+    return response
 
 DB = 'tournament.db'
 
@@ -601,8 +609,11 @@ def admin_overview():
 def index():
     return send_from_directory('.', 'index.html')
 
+# Gunicorn orqali ishga tushganda ham (web: gunicorn main:app) shu yerda chaqiriladi
+init_db()
+start_background_sync()
+
 if __name__ == '__main__':
-    init_db()
     print("✅ CS2 Tournament ishga tushdi → http://localhost:5000")
     print("🔐 Admin: pro_vveb / ryzn77800x3d")
     app.run(debug=True, host='0.0.0.0', port=5000)
