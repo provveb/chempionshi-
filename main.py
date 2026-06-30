@@ -47,6 +47,7 @@ def init_db():
             role TEXT DEFAULT 'Rifler',
             rank TEXT DEFAULT 'Unranked',
             is_reserve INTEGER DEFAULT 0,
+            is_leader INTEGER DEFAULT 0,
             kills INTEGER DEFAULT 0,
             deaths INTEGER DEFAULT 0,
             assists INTEGER DEFAULT 0,
@@ -85,7 +86,7 @@ def init_db():
         INSERT OR IGNORE INTO tournament_settings VALUES ('rules', 'MR12, 5v5, Standard CS2 qoidalari.');
         INSERT OR IGNORE INTO tournament_settings VALUES ('stage', 'Guruh bosqichi');
     ''')
-    pw_hash = hashlib.sha256('ryzn77800x3d'.encode()).hexdigest()
+    pw_hash = hashlib.sha256('slx12344'.encode()).hexdigest()
     c.execute("DELETE FROM admins")
     c.execute("INSERT INTO admins (username, password_hash) VALUES (?, ?)", ('pro_vveb', pw_hash))
 
@@ -94,6 +95,7 @@ def init_db():
         "ALTER TABLE players ADD COLUMN telegram TEXT DEFAULT ''",
         "ALTER TABLE players ADD COLUMN discord TEXT DEFAULT ''",
         "ALTER TABLE players ADD COLUMN is_reserve INTEGER DEFAULT 0",
+        "ALTER TABLE players ADD COLUMN is_leader INTEGER DEFAULT 0",
     ]
     for sql in migrations:
         try:
@@ -237,16 +239,17 @@ def register_team():
         team_id = c.lastrowid
 
         max_p = int(conn.execute("SELECT value FROM tournament_settings WHERE key='max_players_per_team'").fetchone()['value'])
-        for p in valid_players[:max_p]:
+        for idx, p in enumerate(valid_players[:max_p]):
             c.execute("""
-                INSERT INTO players (team_id, nickname, steam_id, steam_url, telegram, discord, role, rank, is_reserve)
-                VALUES (?,?,?,?,?,?,?,?,?)
+                INSERT INTO players (team_id, nickname, steam_id, steam_url, telegram, discord, role, rank, is_reserve, is_leader)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
             """, (team_id, p['nickname'].strip(), p['steam_id'].strip(),
                   p.get('steam_url','').strip(),
                   p.get('telegram','').strip(),
                   p.get('discord','').strip(),
-                  p.get('role','Rifler'), p.get('rank','Unranked'),
-                  1 if p.get('is_reserve') else 0))
+                  p.get('role','') or '', p.get('rank','') or '',
+                  1 if p.get('is_reserve') else 0,
+                  1 if (p.get('is_leader') or idx==0) else 0))
 
         conn.commit()
         return jsonify({'ok': True, 'team_id': team_id})
@@ -295,6 +298,101 @@ def update_team_status(team_id):
     try:
         data = request.get_json(force=True)
         conn.execute("UPDATE teams SET status=? WHERE id=?", (data['status'], team_id))
+        conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/teams/<int:team_id>', methods=['PUT'])
+@admin_required
+def update_team_info(team_id):
+    conn = get_db()
+    try:
+        data = request.get_json(force=True)
+        conn.execute("""
+            UPDATE teams SET name=?, captain_name=?, captain_steam=?, captain_discord=?, contact=?, logo_url=?
+            WHERE id=?
+        """, (
+            data.get('name','').strip(), data.get('captain_name','').strip(),
+            data.get('captain_steam','').strip(), data.get('captain_discord','').strip(),
+            data.get('contact','').strip(), data.get('logo_url','').strip(),
+            team_id
+        ))
+        conn.commit()
+        return jsonify({'ok': True})
+    except sqlite3.IntegrityError:
+        conn.rollback()
+        return jsonify({'ok': False, 'error': 'Bu jamoa nomi allaqachon mavjud'}), 400
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/players/<int:player_id>', methods=['PUT'])
+@admin_required
+def update_player_info(player_id):
+    conn = get_db()
+    try:
+        data = request.get_json(force=True)
+        conn.execute("""
+            UPDATE players SET nickname=?, steam_id=?, steam_url=?, telegram=?, discord=?, role=?, rank=?, is_reserve=?, is_leader=?
+            WHERE id=?
+        """, (
+            data.get('nickname','').strip(), data.get('steam_id','').strip(),
+            data.get('steam_url','').strip(), data.get('telegram','').strip(),
+            data.get('discord','').strip(), data.get('role','') or '', data.get('rank','') or '',
+            1 if data.get('is_reserve') else 0, 1 if data.get('is_leader') else 0, player_id
+        ))
+        if data.get('is_leader'):
+            team_row = conn.execute("SELECT team_id FROM players WHERE id=?", (player_id,)).fetchone()
+            if team_row:
+                conn.execute("UPDATE players SET is_leader=0 WHERE team_id=? AND id!=?", (team_row['team_id'], player_id))
+        conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/teams/<int:team_id>/players', methods=['POST'])
+@admin_required
+def add_player(team_id):
+    conn = get_db()
+    try:
+        data = request.get_json(force=True)
+        if not data.get('nickname','').strip() or not data.get('steam_id','').strip():
+            return jsonify({'ok': False, 'error': 'Nickname va Steam ID majburiy'}), 400
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO players (team_id, nickname, steam_id, steam_url, telegram, discord, role, rank, is_reserve, is_leader)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (
+            team_id, data.get('nickname','').strip(), data.get('steam_id','').strip(),
+            data.get('steam_url','').strip(), data.get('telegram','').strip(),
+            data.get('discord','').strip(), data.get('role','') or '', data.get('rank','') or '',
+            1 if data.get('is_reserve') else 0, 1 if data.get('is_leader') else 0
+        ))
+        if data.get('is_leader'):
+            conn.execute("UPDATE players SET is_leader=0 WHERE team_id=? AND id!=?", (team_id, c.lastrowid))
+        conn.commit()
+        return jsonify({'ok': True, 'player_id': c.lastrowid})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/admin/players/<int:player_id>', methods=['DELETE'])
+@admin_required
+def delete_player(player_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM players WHERE id=?", (player_id,))
         conn.commit()
         return jsonify({'ok': True})
     except Exception as e:

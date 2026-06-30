@@ -15,9 +15,11 @@
   --text:#f1f3f9;--text2:#a0a8bf;--text3:#5a6175;
   --card:#0f1117;
 }
-*{margin:0;padding:0;box-sizing:border-box}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{scroll-behavior:smooth}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+button,a{-webkit-tap-highlight-color:transparent;outline:none}
+button:focus,a:focus{outline:none}
 
 /* SCROLLBAR */
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -186,6 +188,13 @@ input,select,textarea{
 }
 input:focus,select:focus,textarea:focus{border-color:rgba(232,160,32,0.5)}
 input::placeholder{color:var(--text3)}
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,input:-webkit-autofill:active{
+  -webkit-text-fill-color:var(--text)!important;
+  -webkit-box-shadow:0 0 0px 1000px var(--bg3) inset!important;
+  box-shadow:0 0 0px 1000px var(--bg3) inset!important;
+  caret-color:var(--text);
+  transition:background-color 9999s ease-in-out 0s;
+}
 select option{background:var(--bg3)}
 textarea{resize:vertical;min-height:80px}
 .input-icon{position:relative}
@@ -515,7 +524,7 @@ svg{display:inline-block;vertical-align:middle}
   .bk-match-label{padding:4px 8px}
   .bk-match{border-radius:7px}
   .bk-col-matches{gap:14px}
-  .bk-trophy svg{width:40px;height:52px}
+  .bk-trophy svg,.bk-trophy img{width:120px;height:156px}
   .bk-champion{padding:10px 14px}
   .bk-champion-name{font-size:16px}
 
@@ -1659,6 +1668,16 @@ svg{display:inline-block;vertical-align:middle}
   </div>
 </div>
 
+<div class="modal-bg" id="mod-team-edit">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-head">
+      <div class="modal-title">JAMOANI TAHRIRLASH</div>
+      <button class="modal-close" onclick="closeM('mod-team-edit')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body" id="mod-team-edit-body"></div>
+  </div>
+</div>
+
 <!-- MODAL: NEW MATCH -->
 <div class="modal-bg" id="mod-match">
   <div class="modal">
@@ -1924,7 +1943,7 @@ async function openTeamMod(tid) {
           <td class="text-xs">${p.role||'—'}</td>
           <td>${p.rank||'—'}</td>
           <td>${
-            i===0 ? '<span class="tag" style="background:rgba(245,196,85,0.12);color:#f5c455;border:1px solid rgba(245,196,85,0.25)">👑 Lider</span>'
+            p.is_leader ? '<span class="tag" style="background:rgba(245,196,85,0.12);color:#f5c455;border:1px solid rgba(245,196,85,0.25)">👑 Lider</span>'
             : p.is_reserve ? '<span class="tag tag-orange">⚡ Zaxira</span>'
             : '<span class="tag tag-blue">O\'yinchi</span>'
           }</td>
@@ -1934,6 +1953,115 @@ async function openTeamMod(tid) {
       </tbody>
     </table></div>`;
   openM('mod-team');
+}
+
+// ── TEAM EDIT (admin) ───────────────────────────────────────────────────────
+const ROLE_OPTS = ['','Rifler','IGL','AWPer','Entry','Lurker','Support'];
+const RANK_OPTS = ['','Unranked','Silver I','Silver II','Silver III','Gold Nova I','Gold Nova II','Gold Nova III','Gold Nova Master','MG I','MG II','MGE','DMG','LE','LEM','Supreme','Global Elite'];
+
+async function openTeamEdit(tid) {
+  const r = await api(`/api/admin/teams/${tid}`).catch(()=>null);
+  if(!r || !r.team) return;
+  const team = r.team, players = r.players;
+
+  const selOpts = (opts, val) => opts.map(o=>`<option value="${o}" ${o===(val||'')?'selected':''}>${o||(opts===ROLE_OPTS?'Rol':'Rang')}</option>`).join('');
+
+  document.getElementById('mod-team-edit-body').innerHTML = `
+    <div class="form-grid mb-4">
+      <div class="form-g"><label>Jamoa nomi</label><input id="te-name" value="${team.name||''}"></div>
+      <div class="form-g"><label>Logotip URL</label><input id="te-logo" value="${team.logo_url||''}" placeholder="https://..."></div>
+      <div class="form-g"><label>Kapitan</label><input id="te-cap-name" value="${team.captain_name||''}"></div>
+      <div class="form-g"><label>Kapitan Steam ID</label><input id="te-cap-steam" value="${team.captain_steam||''}"></div>
+      <div class="form-g"><label>Kapitan Discord</label><input id="te-cap-discord" value="${team.captain_discord||''}"></div>
+      <div class="form-g"><label>Aloqa (telegram/tel)</label><input id="te-contact" value="${team.contact||''}"></div>
+    </div>
+    <div class="flex items-c" style="justify-content:space-between;margin-bottom:10px">
+      <div class="card-title font-raj fw-7" style="font-size:14px">O'YINCHILAR</div>
+      <button class="btn btn-xs btn-ghost" onclick="addPlayerRow(${tid})">+ O'yinchi qo'shish</button>
+    </div>
+    <div id="te-players-wrap" style="display:flex;flex-direction:column;gap:10px">
+      ${players.map(p=>teamEditPlayerRow(p)).join('') || '<div class="text-sm text-d" style="padding:10px 0">O\'yinchilar yo\'q</div>'}
+    </div>
+    <div class="flex gap-2" style="justify-content:flex-end;margin-top:18px">
+      <button class="btn btn-outline" onclick="closeM('mod-team-edit')">Bekor qilish</button>
+      <button class="btn btn-primary" onclick="saveTeamEdit(${tid})">Saqlash</button>
+    </div>`;
+  openM('mod-team-edit');
+}
+
+function teamEditPlayerRow(p) {
+  const selOpts = (opts, val) => opts.map(o=>`<option value="${o}" ${o===(val||'')?'selected':''}>${o||(opts===ROLE_OPTS?'Rol':'Rang')}</option>`).join('');
+  const turVal = p.is_leader ? 'leader' : p.is_reserve ? 'reserve' : 'player';
+  const turOpts = [['player',"O'yinchi"],['leader','👑 Lider'],['reserve','⚡ Zaxira']]
+    .map(([v,l])=>`<option value="${v}" ${v===turVal?'selected':''}>${l}</option>`).join('');
+  return `
+    <div class="te-player-row" data-pid="${p.id}" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:grid;grid-template-columns:repeat(6,1fr) auto auto;gap:8px;align-items:end">
+      <div><label style="font-size:10px;color:var(--text3)">NICK</label><input id="tep-nick-${p.id}" value="${p.nickname||''}" style="font-size:13px"></div>
+      <div><label style="font-size:10px;color:var(--text3)">STEAM ID</label><input id="tep-steam-${p.id}" value="${p.steam_id||''}" style="font-size:13px"></div>
+      <div><label style="font-size:10px;color:var(--text3)">TELEGRAM</label><input id="tep-tg-${p.id}" value="${p.telegram||''}" style="font-size:13px"></div>
+      <div><label style="font-size:10px;color:var(--text3)">DISCORD</label><input id="tep-dc-${p.id}" value="${p.discord||''}" style="font-size:13px"></div>
+      <div><label style="font-size:10px;color:var(--text3)">ROL</label><select id="tep-role-${p.id}" style="font-size:13px">${selOpts(ROLE_OPTS,p.role)}</select></div>
+      <div><label style="font-size:10px;color:var(--text3)">RANG</label><select id="tep-rank-${p.id}" style="font-size:13px">${selOpts(RANK_OPTS,p.rank)}</select></div>
+      <div><label style="font-size:10px;color:var(--text3)">TUR</label><select id="tep-tur-${p.id}" style="font-size:13px">${turOpts}</select></div>
+      <button class="btn btn-xs btn-red" onclick="removePlayerRow(${p.id})" title="O'chirish">${iconSvg('trash')}</button>
+    </div>`;
+}
+
+let _newPlayerSeq = -1;
+function addPlayerRow(tid) {
+  const id = _newPlayerSeq--;
+  const wrap = document.getElementById('te-players-wrap');
+  const empty = wrap.querySelector('.text-d');
+  if(empty) empty.remove();
+  const row = document.createElement('div');
+  row.innerHTML = teamEditPlayerRow({id, nickname:'', steam_id:'', telegram:'', discord:'', role:'', rank:''});
+  wrap.appendChild(row.firstElementChild);
+}
+
+function removePlayerRow(pid) {
+  const row = document.querySelector(`.te-player-row[data-pid="${pid}"]`);
+  if(row && confirm("O'yinchini o'chirishni tasdiqlaysizmi?")) {
+    if(pid > 0) api(`/api/admin/players/${pid}`, {method:'DELETE'});
+    row.remove();
+  }
+}
+
+async function saveTeamEdit(tid) {
+  const teamRes = await api(`/api/admin/teams/${tid}`, {method:'PUT', body:JSON.stringify({
+    name: document.getElementById('te-name').value.trim(),
+    logo_url: document.getElementById('te-logo').value.trim(),
+    captain_name: document.getElementById('te-cap-name').value.trim(),
+    captain_steam: document.getElementById('te-cap-steam').value.trim(),
+    captain_discord: document.getElementById('te-cap-discord').value.trim(),
+    contact: document.getElementById('te-contact').value.trim()
+  })});
+  if(!teamRes.ok) { alert('Xato: ' + (teamRes.error||'')); return; }
+
+  const rows = document.querySelectorAll('.te-player-row');
+  for(const row of rows) {
+    const pid = parseInt(row.dataset.pid);
+    const tur = document.getElementById(`tep-tur-${pid}`).value;
+    const payload = {
+      nickname: document.getElementById(`tep-nick-${pid}`).value.trim(),
+      steam_id: document.getElementById(`tep-steam-${pid}`).value.trim(),
+      telegram: document.getElementById(`tep-tg-${pid}`).value.trim(),
+      discord: document.getElementById(`tep-dc-${pid}`).value.trim(),
+      role: document.getElementById(`tep-role-${pid}`).value,
+      rank: document.getElementById(`tep-rank-${pid}`).value,
+      is_leader: tur==='leader',
+      is_reserve: tur==='reserve'
+    };
+    if(!payload.nickname || !payload.steam_id) continue;
+    if(pid > 0) {
+      await api(`/api/admin/players/${pid}`, {method:'PUT', body:JSON.stringify(payload)});
+    } else {
+      await api(`/api/admin/teams/${tid}/players`, {method:'POST', body:JSON.stringify(payload)});
+    }
+  }
+  alert('✅ Jamoa ma\'lumotlari yangilandi!');
+  closeM('mod-team-edit');
+  if(typeof loadATeams==='function') loadATeams();
+  if(typeof loadPending==='function') loadPending();
 }
 
 // ── BRACKET ──────────────────────────────────────────────────────────────────
@@ -2061,34 +2189,11 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
       <!-- FINAL center -->
       <div class="bk-col bk-col-fin">
         <div class="bk-trophy">
-          <svg viewBox="0 0 80 100" width="64" height="80" fill="none">
-            <defs>
-              <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#f5c455"/>
-                <stop offset="50%" stop-color="#e8a020"/>
-                <stop offset="100%" stop-color="#c47a10"/>
-              </linearGradient>
-            </defs>
-            <!-- Cup body -->
-            <path d="M20 8 h40 v28 q0 20-20 28 q-20-8-20-28 Z" fill="url(#tg)" stroke="#c47a10" stroke-width="1"/>
-            <!-- Handles left -->
-            <path d="M20 15 Q6 15 6 28 Q6 38 20 38" fill="none" stroke="url(#tg)" stroke-width="4" stroke-linecap="round"/>
-            <!-- Handles right -->
-            <path d="M60 15 Q74 15 74 28 Q74 38 60 38" fill="none" stroke="url(#tg)" stroke-width="4" stroke-linecap="round"/>
-            <!-- Stem -->
-            <rect x="34" y="64" width="12" height="14" fill="url(#tg)"/>
-            <!-- Base -->
-            <rect x="22" y="78" width="36" height="7" rx="3" fill="url(#tg)" stroke="#c47a10" stroke-width="1"/>
-            <!-- Shine -->
-            <path d="M30 14 Q36 12 38 22" stroke="rgba(255,255,255,0.35)" stroke-width="3" stroke-linecap="round" fill="none"/>
-            <!-- Star sparkle -->
-            <g fill="#fff5" font-size="10">
-              <text x="52" y="10">✦</text>
-              <text x="14" y="20">✦</text>
-            </g>
-          </svg>
-        </div>
-        <div class="bk-col-title" style="color:var(--accent);font-size:13px">CHAMPION</div>
+<img src="https://raw.githubusercontent.com/provveb/chempionshi-/refs/heads/main/cubik.png"
+     alt="Trophy"
+     width="125"
+     height="150"
+     style="object-fit:contain">        </div>
         <div class="bk-col-matches" id="bk-fin">
           ${matchBlock('bk-fin-0', finM[0]||null, null, null, null, null, 'GRAND FINAL')}
         </div>
@@ -2274,12 +2379,14 @@ function addPlayer() {
     <input type="text" placeholder="@telegram" id="ptg-${id}">
     <input type="text" placeholder="discord#0000" id="pdc-${id}">
     <select id="po-${id}">
-      <option ${rolDefault==='Rifler'?'selected':''}>Rifler</option>
-      <option ${rolDefault==='IGL'?'selected':''}>IGL</option>
-      <option>AWPer</option>
-      <option>Entry</option><option>Lurker</option><option>Support</option>
+      <option value="" selected>Rol</option>
+      <option value="Rifler">Rifler</option>
+      <option value="IGL">IGL</option>
+      <option value="AWPer">AWPer</option>
+      <option value="Entry">Entry</option><option value="Lurker">Lurker</option><option value="Support">Support</option>
     </select>
     <select id="pk-${id}">
+      <option value="" selected>Rang</option>
       <option>Unranked</option><option>Silver I</option><option>Silver II</option>
       <option>Silver III</option><option>Gold Nova I</option><option>Gold Nova II</option>
       <option>Gold Nova III</option><option>Gold Nova Master</option>
@@ -2328,8 +2435,8 @@ function getPlayers() {
       steam_id:   document.getElementById(`ps-${id}`)?.value?.trim()||'',
       telegram:   document.getElementById(`ptg-${id}`)?.value?.trim()||'',
       discord:    document.getElementById(`pdc-${id}`)?.value?.trim()||'',
-      role:       document.getElementById(`po-${id}`)?.value||'Rifler',
-      rank:       document.getElementById(`pk-${id}`)?.value||'Unranked',
+      role:       document.getElementById(`po-${id}`)?.value||'',
+      rank:       document.getElementById(`pk-${id}`)?.value||'',
       is_reserve: i === 5,
       is_leader:  i === 0
     };
@@ -2391,7 +2498,7 @@ function buildReview() {
           <td class="text-xs">${p.discord}</td>
           <td>${p.role}</td><td>${p.rank}</td>
           <td>${
-            i===0 ? '<span class="tag" style="background:rgba(245,196,85,0.12);color:#f5c455;border:1px solid rgba(245,196,85,0.25)">👑 Lider</span>'
+            p.is_leader ? '<span class="tag" style="background:rgba(245,196,85,0.12);color:#f5c455;border:1px solid rgba(245,196,85,0.25)">👑 Lider</span>'
             : p.is_reserve ? '<span class="tag tag-orange">⚡ Zaxira</span>'
             : '<span class="tag tag-blue">O\'yinchi</span>'
           }</td>
@@ -2474,6 +2581,7 @@ async function loadOv() {
       <button class="btn btn-xs btn-green" onclick="teamStatus(${t.id},'approved',true)">${iconSvg('check')} Tasdiqlash</button>
       <button class="btn btn-xs btn-red" onclick="teamStatus(${t.id},'rejected',true)">${iconSvg('x')} Rad</button>
       <button class="btn btn-xs btn-ghost" onclick="openTeamMod(${t.id})">${iconSvg('eye')}</button>
+      <button class="btn btn-xs btn-ghost" onclick="openTeamEdit(${t.id})">${iconSvg('edit')}</button>
     </td>
   </tr>`).join('')||`<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3)">Kutilayotgan ariza yo'q</td></tr>`;
 }
@@ -2499,10 +2607,11 @@ async function loadATeams() {
               t.status==='approved'?'tag-green':t.status==='rejected'?'tag-red':'tag-orange')}</td>
     <td>
       <div class="flex gap-2" style="flex-wrap:wrap">
-        ${t.status!=='approved'?`<button class="btn btn-xs btn-green" onclick="teamStatus(${t.id},'approved')">${iconSvg('check')}</button>`:''}
-        ${t.status!=='rejected'?`<button class="btn btn-xs btn-red" onclick="teamStatus(${t.id},'rejected')">${iconSvg('x')}</button>`:''}
-        <button class="btn btn-xs btn-ghost" onclick="openTeamMod(${t.id})">${iconSvg('eye')}</button>
-        <button class="btn btn-xs btn-red" onclick="delTeam(${t.id},'${t.name.replace(/'/g,'')}')">${iconSvg('trash')}</button>
+        ${t.status!=='approved'?`<button class="btn btn-xs btn-green" title="Tasdiqlash" onclick="teamStatus(${t.id},'approved')">${iconSvg('check')}</button>`:''}
+        ${t.status!=='rejected'?`<button class="btn btn-xs btn-red" title="Rad etish" onclick="teamStatus(${t.id},'rejected')">${iconSvg('x')}</button>`:''}
+        <button class="btn btn-xs btn-ghost" title="Ko'rish" onclick="openTeamMod(${t.id})">${iconSvg('eye')}</button>
+        <button class="btn btn-xs btn-ghost" title="Tahrirlash" onclick="openTeamEdit(${t.id})">${iconSvg('edit')}</button>
+        <button class="btn btn-xs btn-red" style="background:rgba(239,68,68,0.22);border-color:rgba(239,68,68,0.4)" title="Butunlay o'chirish" onclick="delTeam(${t.id},'${t.name.replace(/'/g,'')}')">${iconSvg('trash')}</button>
       </div>
     </td>
   </tr>`).join('')||`<tr><td colspan="7" style="padding:30px;text-align:center;color:var(--text3)">Ro'yxat bo'sh</td></tr>`;
