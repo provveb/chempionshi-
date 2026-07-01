@@ -730,20 +730,6 @@
       "scheduled_at": "",
       "played_at": "2026-07-01T10:39:58.976054",
       "bracket_pos": "QF3"
-    },
-    {
-      "id": 5,
-      "team1_id": null,
-      "team2_id": 13,
-      "score1": 0,
-      "score2": 0,
-      "map": "TBD",
-      "stage": "Semifinals",
-      "status": "scheduled",
-      "winner_id": null,
-      "scheduled_at": "",
-      "played_at": null,
-      "bracket_pos": "SF1"
     }
   ],
   "next_ids": {
