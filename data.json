@@ -690,9 +690,9 @@
   ],
   "matches": [
     {
-      "id": 2,
+      "id": 6,
       "team1_id": 18,
-      "team2_id": 16,
+      "team2_id": null,
       "score1": 0,
       "score2": 0,
       "map": "TBD",
@@ -707,6 +707,6 @@
   "next_ids": {
     "team": 19,
     "player": 103,
-    "match": 6
+    "match": 7
   }
 }
