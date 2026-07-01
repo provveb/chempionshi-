@@ -244,10 +244,10 @@ textarea{resize:vertical;min-height:80px}
 .step-item.done .step-num{background:var(--green);color:#fff;border-color:var(--green)}
 
 /* PLAYER FORM ROW */
-.p-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 100px 100px 36px;gap:8px;align-items:end;margin-bottom:22px}
+.p-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 100px 36px;gap:8px;align-items:end;margin-bottom:22px}
 .p-row:last-child{margin-bottom:0}
 .p-row input,.p-row select{min-width:0}
-.p-row-header{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 100px 100px 36px;gap:8px;margin-bottom:22px}
+.p-row-header{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 100px 36px;gap:8px;margin-bottom:22px}
 .p-row-header span{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px}
 .remove-btn{
   background:var(--bg4);border:1px solid var(--border2);color:var(--text3);
@@ -494,7 +494,7 @@ svg{display:inline-block;vertical-align:middle}
   /* Player row: 2 columns on tablet */
   .p-row{grid-template-columns:1fr 1fr;grid-template-rows:auto auto auto;gap:8px}
   .p-row-header{grid-template-columns:1fr 1fr;display:none}
-  .p-row>:nth-child(5),.p-row>:nth-child(6){width:100%}
+  .p-row>:nth-child(5){width:100%}
   .p-row>:last-child{grid-column:1/-1;width:auto;height:36px}
 }
 
@@ -999,7 +999,7 @@ svg{display:inline-block;vertical-align:middle}
           Kamida 5 ta o'yinchi (1 lider + 4 o'yinchi) + 1 ta zaxira (jami 6 ta). Telegram va Discord kiritilishi shart.
         </div>
         <div class="p-row-header">
-          <span>Nickname *</span><span>Steam ID *</span><span>Telegram *</span><span>Discord *</span><span>Rol</span><span>Rang</span><span></span>
+          <span>Nickname *</span><span>Steam ID *</span><span>Telegram *</span><span>Discord *</span><span>Rol</span><span></span>
         </div>
         <div id="players-wrap"></div>
         <div class="flex jc-sb mt-4">
@@ -1975,7 +1975,6 @@ async function openTeamMod(tid) {
         <th>STEAM ID</th>
         ${isAdmin ? '<th>TELEGRAM</th><th>DISCORD</th>' : ''}
         <th>ROL</th>
-        <th>RANG</th>
         <th>TUR</th>
         <th>K/D/A</th>
         <th>RTG</th>
@@ -1987,7 +1986,6 @@ async function openTeamMod(tid) {
           <td class="text-xs text-d">${p.steam_id||'—'}</td>
           ${isAdmin ? `<td class="text-xs" style="color:var(--blue)">${p.telegram||'—'}</td><td class="text-xs text-d">${p.discord||'—'}</td>` : ''}
           <td class="text-xs">${p.role||'—'}</td>
-          <td>${p.rank||'—'}</td>
           <td>${
             p.is_leader ? '<span class="tag" style="background:rgba(245,196,85,0.12);color:#f5c455;border:1px solid rgba(245,196,85,0.25)">👑 Lider</span>'
             : p.is_reserve ? '<span class="tag tag-orange">⚡ Zaxira</span>'
@@ -2003,14 +2001,13 @@ async function openTeamMod(tid) {
 
 // ── TEAM EDIT (admin) ───────────────────────────────────────────────────────
 const ROLE_OPTS = ['','Rifler','IGL','AWPer','Entry','Lurker','Support'];
-const RANK_OPTS = ['','Unranked','Silver I','Silver II','Silver III','Gold Nova I','Gold Nova II','Gold Nova III','Gold Nova Master','MG I','MG II','MGE','DMG','LE','LEM','Supreme','Global Elite'];
 
 async function openTeamEdit(tid) {
   const r = await api(`/api/admin/teams/${tid}`).catch(()=>null);
   if(!r || !r.team) return;
   const team = r.team, players = r.players;
 
-  const selOpts = (opts, val) => opts.map(o=>`<option value="${o}" ${o===(val||'')?'selected':''}>${o||(opts===ROLE_OPTS?'Rol':'Rang')}</option>`).join('');
+  const selOpts = (opts, val) => opts.map(o=>`<option value="${o}" ${o===(val||'')?'selected':''}>${o||'Rol'}</option>`).join('');
 
   document.getElementById('mod-team-edit-body').innerHTML = `
     <div class="form-grid mb-4">
@@ -2036,18 +2033,17 @@ async function openTeamEdit(tid) {
 }
 
 function teamEditPlayerRow(p) {
-  const selOpts = (opts, val) => opts.map(o=>`<option value="${o}" ${o===(val||'')?'selected':''}>${o||(opts===ROLE_OPTS?'Rol':'Rang')}</option>`).join('');
+  const selOpts = (opts, val) => opts.map(o=>`<option value="${o}" ${o===(val||'')?'selected':''}>${o||'Rol'}</option>`).join('');
   const turVal = p.is_leader ? 'leader' : p.is_reserve ? 'reserve' : 'player';
   const turOpts = [['player',"O'yinchi"],['leader','👑 Lider'],['reserve','⚡ Zaxira']]
     .map(([v,l])=>`<option value="${v}" ${v===turVal?'selected':''}>${l}</option>`).join('');
   return `
-    <div class="te-player-row" data-pid="${p.id}" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:grid;grid-template-columns:repeat(6,1fr) auto auto;gap:8px;align-items:end">
+    <div class="te-player-row" data-pid="${p.id}" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px;display:grid;grid-template-columns:repeat(5,1fr) auto auto;gap:8px;align-items:end">
       <div><label style="font-size:10px;color:var(--text3)">NICK</label><input id="tep-nick-${p.id}" value="${p.nickname||''}" style="font-size:13px"></div>
       <div><label style="font-size:10px;color:var(--text3)">STEAM ID</label><input id="tep-steam-${p.id}" value="${p.steam_id||''}" style="font-size:13px"></div>
       <div><label style="font-size:10px;color:var(--text3)">TELEGRAM</label><input id="tep-tg-${p.id}" value="${p.telegram||''}" style="font-size:13px"></div>
       <div><label style="font-size:10px;color:var(--text3)">DISCORD</label><input id="tep-dc-${p.id}" value="${p.discord||''}" style="font-size:13px"></div>
       <div><label style="font-size:10px;color:var(--text3)">ROL</label><select id="tep-role-${p.id}" style="font-size:13px">${selOpts(ROLE_OPTS,p.role)}</select></div>
-      <div><label style="font-size:10px;color:var(--text3)">RANG</label><select id="tep-rank-${p.id}" style="font-size:13px">${selOpts(RANK_OPTS,p.rank)}</select></div>
       <div><label style="font-size:10px;color:var(--text3)">TUR</label><select id="tep-tur-${p.id}" style="font-size:13px">${turOpts}</select></div>
       <button class="btn btn-xs btn-red" onclick="removePlayerRow(${p.id})" title="O'chirish">${iconSvg('trash')}</button>
     </div>`;
@@ -2060,7 +2056,7 @@ function addPlayerRow(tid) {
   const empty = wrap.querySelector('.text-d');
   if(empty) empty.remove();
   const row = document.createElement('div');
-  row.innerHTML = teamEditPlayerRow({id, nickname:'', steam_id:'', telegram:'', discord:'', role:'', rank:''});
+  row.innerHTML = teamEditPlayerRow({id, nickname:'', steam_id:'', telegram:'', discord:'', role:''});
   wrap.appendChild(row.firstElementChild);
 }
 
@@ -2093,7 +2089,6 @@ async function saveTeamEdit(tid) {
       telegram: document.getElementById(`tep-tg-${pid}`).value.trim(),
       discord: document.getElementById(`tep-dc-${pid}`).value.trim(),
       role: document.getElementById(`tep-role-${pid}`).value,
-      rank: document.getElementById(`tep-rank-${pid}`).value,
       is_leader: tur==='leader',
       is_reserve: tur==='reserve'
     };
@@ -2431,15 +2426,6 @@ function addPlayer() {
       <option value="AWPer">AWPer</option>
       <option value="Entry">Entry</option><option value="Lurker">Lurker</option><option value="Support">Support</option>
     </select>
-    <select id="pk-${id}">
-      <option value="" selected>Rang</option>
-      <option>Unranked</option><option>Silver I</option><option>Silver II</option>
-      <option>Silver III</option><option>Gold Nova I</option><option>Gold Nova II</option>
-      <option>Gold Nova III</option><option>Gold Nova Master</option>
-      <option>MG I</option><option>MG II</option><option>MGE</option>
-      <option>DMG</option><option>LE</option><option>LEM</option>
-      <option>Supreme</option><option>Global Elite</option>
-    </select>
     <button class="remove-btn" onclick="rmPlayer(${id})" title="O'chirish" ${current < 5 ? 'style="display:none"' : ''}>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
     </button>`;
@@ -2482,7 +2468,6 @@ function getPlayers() {
       telegram:   document.getElementById(`ptg-${id}`)?.value?.trim()||'',
       discord:    document.getElementById(`pdc-${id}`)?.value?.trim()||'',
       role:       document.getElementById(`po-${id}`)?.value||'',
-      rank:       document.getElementById(`pk-${id}`)?.value||'',
       is_reserve: i === 5,
       is_leader:  i === 0
     };
@@ -2536,13 +2521,13 @@ function buildReview() {
     <div class="card mb-4">
       <div class="card-head"><div class="card-title">O'YINCHILAR (${ps.length} ta)</div></div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>#</th><th>NICK</th><th>STEAM ID</th><th>TELEGRAM</th><th>DISCORD</th><th>ROL</th><th>RANG</th><th></th></tr></thead>
+        <thead><tr><th>#</th><th>NICK</th><th>STEAM ID</th><th>TELEGRAM</th><th>DISCORD</th><th>ROL</th><th></th></tr></thead>
         <tbody>${ps.map((p,i)=>`<tr>
           <td class="text-d">${i+1}</td><td><b>${p.nickname}</b></td>
           <td class="text-xs text-d">${p.steam_id}</td>
           <td class="text-xs">${p.telegram}</td>
           <td class="text-xs">${p.discord}</td>
-          <td>${p.role}</td><td>${p.rank}</td>
+          <td>${p.role}</td>
           <td>${
             p.is_leader ? '<span class="tag" style="background:rgba(245,196,85,0.12);color:#f5c455;border:1px solid rgba(245,196,85,0.25)">👑 Lider</span>'
             : p.is_reserve ? '<span class="tag tag-orange">⚡ Zaxira</span>'
@@ -2758,7 +2743,7 @@ async function loadTeamStats(){
   const players=await api(`/api/teams/${tid}/players`);
   document.getElementById('st-players').innerHTML=players.map(p=>`
     <div class="card mb-3">
-      <div class="card-head"><div class="card-title">${p.nickname} <span class="text-d text-xs">${p.role} · ${p.rank}</span></div></div>
+      <div class="card-head"><div class="card-title">${p.nickname} <span class="text-d text-xs">${p.role}</span></div></div>
       <div class="card-body">
         <div class="form-row">
           <div class="form-g"><label>Kills</label><input type="number" id="sk-${p.id}" value="${p.kills}" min="0"></div>
