@@ -702,20 +702,6 @@
       "scheduled_at": "",
       "played_at": null,
       "bracket_pos": "QF1"
-    },
-    {
-      "id": 3,
-      "team1_id": 14,
-      "team2_id": 13,
-      "score1": 6,
-      "score2": 13,
-      "map": "TBD",
-      "stage": "Quarterfinals",
-      "status": "finished",
-      "winner_id": 13,
-      "scheduled_at": "",
-      "played_at": "2026-07-01T10:40:29.148724",
-      "bracket_pos": "QF2"
     }
   ],
   "next_ids": {
