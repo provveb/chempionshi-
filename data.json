@@ -688,10 +688,25 @@
       "rating": 0.0
     }
   ],
-  "matches": [],
+  "matches": [
+    {
+      "id": 9,
+      "team1_id": 18,
+      "team2_id": null,
+      "score1": 0,
+      "score2": 0,
+      "map": "TBD",
+      "stage": "Quarterfinals",
+      "status": "scheduled",
+      "winner_id": null,
+      "scheduled_at": "",
+      "played_at": null,
+      "bracket_pos": "QF1"
+    }
+  ],
   "next_ids": {
     "team": 19,
     "player": 103,
-    "match": 9
+    "match": 10
   }
 }
