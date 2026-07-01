@@ -486,12 +486,29 @@
       "discord": "-",
       "is_reserve": 1,
       "is_leader": 0
+    },
+    {
+      "id": 86,
+      "team_id": 11,
+      "nickname": "HERZ",
+      "steam_id": "76561199630550725",
+      "steam_url": "",
+      "telegram": "+998954987377",
+      "discord": "herzmc_62826",
+      "role": "Lurker",
+      "rank": "MG II",
+      "is_reserve": 1,
+      "is_leader": 0,
+      "kills": 0,
+      "deaths": 0,
+      "assists": 0,
+      "rating": 0.0
     }
   ],
   "matches": [],
   "next_ids": {
     "team": 16,
-    "player": 86,
+    "player": 87,
     "match": 1
   }
 }
