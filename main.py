@@ -44,7 +44,24 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+@app.route('/api/admin/password', methods=['PUT'])
+@admin_required
+def change_admin_password():
+    data = request.get_json(force=True)
+    current = data.get('current_password', '')
+    new = data.get('new_password', '')
 
+    if not new or len(new) < 6:
+        return jsonify({'ok': False, 'error': "Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak"}), 400
+
+    d = store.load()
+    current_hash = hashlib.sha256(current.encode()).hexdigest()
+    if current_hash != d['admin']['password_hash']:
+        return jsonify({'ok': False, 'error': "Joriy parol noto'g'ri"}), 400
+
+    d['admin']['password_hash'] = hashlib.sha256(new.encode()).hexdigest()
+    store.save(d, commit_message="Admin paroli o'zgartirildi")
+    return jsonify({'ok': True})
 # ─── PUBLIC ──────────────────────────────────────────────────────────────────
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
@@ -381,65 +398,112 @@ def delete_match(match_id):
     return jsonify({'ok': True})
 
 
-@app.route('/api/admin/bracket/manual', methods=['POST'])
+# ─── BRACKET BUILDER (drag & drop) ───────────────────────────────────────────
+# Bracket pozitsiyalari va g'olib avtomatik o'tadigan keyingi pozitsiya/slot xaritasi
+BRACKET_STAGE = {
+    'QF1': 'Quarterfinals', 'QF2': 'Quarterfinals', 'QF3': 'Quarterfinals', 'QF4': 'Quarterfinals',
+    'SF1': 'Semifinals', 'SF2': 'Semifinals', 'GF': 'Grand Final',
+}
+BRACKET_ADVANCE = {
+    'QF1': ('SF1', 1), 'QF2': ('SF1', 2),
+    'QF3': ('SF2', 1), 'QF4': ('SF2', 2),
+    'SF1': ('GF', 1), 'SF2': ('GF', 2),
+}
+
+
+def _find_bracket_match(d, bracket_pos):
+    return next((m for m in d['matches'] if m.get('bracket_pos') == bracket_pos), None)
+
+
+def _get_or_create_bracket_match(d, bracket_pos):
+    m = _find_bracket_match(d, bracket_pos)
+    if m:
+        return m
+    match_id = store.next_id(d, 'match')
+    m = {
+        'id': match_id, 'team1_id': None, 'team2_id': None,
+        'score1': 0, 'score2': 0, 'map': 'TBD',
+        'stage': BRACKET_STAGE.get(bracket_pos, 'Group Stage'),
+        'status': 'scheduled', 'winner_id': None,
+        'scheduled_at': '', 'played_at': None,
+        'bracket_pos': bracket_pos,
+    }
+    d['matches'].append(m)
+    return m
+
+
+@app.route('/api/admin/bracket', methods=['GET'])
 @admin_required
-def create_manual_bracket():
+def get_admin_bracket():
+    d = store.load()
+    matches = [m for m in d['matches'] if m.get('bracket_pos')]
+    return jsonify({'ok': True, 'matches': matches})
+
+
+@app.route('/api/admin/bracket/slot', methods=['POST'])
+@admin_required
+def assign_bracket_slot():
     data = request.get_json(force=True)
-    pairs = data.get('pairs', [])
-    if not pairs:
-        return jsonify({'ok': False, 'error': 'Juftliklar yuborilmadi'}), 400
+    bracket_pos = data.get('bracket_pos')
+    slot = data.get('slot')
+    team_id = data.get('team_id')
+    if bracket_pos not in BRACKET_STAGE or slot not in (1, 2):
+        return jsonify({'ok': False, 'error': "Noto'g'ri bracket pozitsiyasi"}), 400
     d = store.load()
-    if data.get('clear_scheduled', True):
-        d['matches'] = [m for m in d['matches'] if m.get('status') != 'scheduled']
-    created = 0
-    for p in pairs:
-        t1 = p.get('team1_id')
-        t2 = p.get('team2_id')
-        if not t1:
-            continue
-        match_id = store.next_id(d, 'match')
-        d['matches'].append({
-            'id': match_id, 'team1_id': t1, 'team2_id': t2,
-            'score1': 0, 'score2': 0,
-            'map': p.get('map', 'TBD'), 'stage': p.get('stage', 'Quarterfinals'),
-            'status': 'scheduled', 'winner_id': None,
-            'scheduled_at': '', 'played_at': None,
-        })
-        created += 1
-    store.save(d, commit_message="Bracket qo'lda yaratildi")
-    return jsonify({'ok': True, 'created': created})
+    m = _get_or_create_bracket_match(d, bracket_pos)
+    if m['status'] == 'finished':
+        return jsonify({'ok': False, 'error': "Bu o'yin allaqachon yakunlangan"}), 400
+    m['team1_id' if slot == 1 else 'team2_id'] = team_id
+    store.save(d, commit_message=f"Bracket: {bracket_pos} slot {slot} yangilandi")
+    return jsonify({'ok': True})
 
 
-@app.route('/api/admin/bracket/generate', methods=['POST'])
+@app.route('/api/admin/bracket/<bracket_pos>/result', methods=['PUT'])
 @admin_required
-def generate_bracket():
+def save_bracket_result(bracket_pos):
+    data = request.get_json(force=True)
     d = store.load()
-    teams = [t for t in d['teams'] if t.get('status') == 'approved']
-    teams.sort(key=lambda t: (-t.get('points', 0), -t.get('wins', 0), t['id']))
-    ids = [t['id'] for t in teams]
-    if len(ids) < 2:
-        return jsonify({'ok': False, 'error': 'Kamida 2 ta tasdiqlangan jamoa kerak'})
-    while len(ids) < 8:
-        ids.append(None)
-    ids = ids[:8]
+    m = _find_bracket_match(d, bracket_pos)
+    if not m:
+        return jsonify({'ok': False, 'error': 'Topilmadi'}), 404
+    if not m.get('team1_id') or not m.get('team2_id'):
+        return jsonify({'ok': False, 'error': "Ikkala jamoa ham tanlanmagan"}), 400
+    s1, s2 = int(data['score1']), int(data['score2'])
+    if s1 == s2:
+        return jsonify({'ok': False, 'error': "Durrang bo'lishi mumkin emas"}), 400
+    winner_id = m['team1_id'] if s1 > s2 else m['team2_id']
+    loser_id = m['team2_id'] if winner_id == m['team1_id'] else m['team1_id']
+    m.update({
+        'score1': s1, 'score2': s2, 'winner_id': winner_id,
+        'status': 'finished', 'played_at': datetime.utcnow().isoformat(),
+    })
+    winner = next((t for t in d['teams'] if t['id'] == winner_id), None)
+    loser = next((t for t in d['teams'] if t['id'] == loser_id), None)
+    if winner:
+        winner['wins'] += 1
+        winner['points'] += 3
+        winner['maps_won'] += max(s1, s2)
+    if loser:
+        loser['losses'] += 1
+        loser['maps_lost'] += min(s1, s2)
 
-    d['matches'] = [m for m in d['matches'] if m.get('status') != 'scheduled']
+    # G'olibni avtomatik keyingi bosqichga o'tkazish
+    if bracket_pos in BRACKET_ADVANCE:
+        next_pos, next_slot = BRACKET_ADVANCE[bracket_pos]
+        nm = _get_or_create_bracket_match(d, next_pos)
+        nm['team1_id' if next_slot == 1 else 'team2_id'] = winner_id
 
-    seed_pairs = [(0, 7), (3, 4), (2, 5), (1, 6)]
-    created = 0
-    for a, b in seed_pairs:
-        t1, t2 = ids[a], ids[b]
-        if t1:
-            match_id = store.next_id(d, 'match')
-            d['matches'].append({
-                'id': match_id, 'team1_id': t1, 'team2_id': t2,
-                'score1': 0, 'score2': 0, 'map': 'TBD',
-                'stage': 'Quarterfinals', 'status': 'scheduled', 'winner_id': None,
-                'scheduled_at': '', 'played_at': None,
-            })
-            created += 1
-    store.save(d, commit_message="Bracket avtomatik generatsiya qilindi")
-    return jsonify({'ok': True, 'pairs': created})
+    store.save(d, commit_message=f"Bracket natija: {bracket_pos}")
+    return jsonify({'ok': True, 'winner_id': winner_id})
+
+
+@app.route('/api/admin/bracket/reset', methods=['POST'])
+@admin_required
+def reset_bracket():
+    d = store.load()
+    d['matches'] = [m for m in d['matches'] if not m.get('bracket_pos')]
+    store.save(d, commit_message="Bracket tozalandi")
+    return jsonify({'ok': True})
 
 
 @app.route('/api/admin/settings', methods=['PUT'])
