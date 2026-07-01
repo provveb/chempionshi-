@@ -156,7 +156,6 @@ def register_team():
             'telegram': p.get('telegram', '').strip(),
             'discord': p.get('discord', '').strip(),
             'role': p.get('role', '') or '',
-            'rank': p.get('rank', '') or '',
             'is_reserve': 1 if p.get('is_reserve') else 0,
             'is_leader': 1 if (p.get('is_leader') or idx == 0) else 0,
             'kills': 0,
@@ -255,7 +254,6 @@ def update_player_info(player_id):
         'telegram': data.get('telegram', '').strip(),
         'discord': data.get('discord', '').strip(),
         'role': data.get('role', '') or '',
-        'rank': data.get('rank', '') or '',
         'is_reserve': 1 if data.get('is_reserve') else 0,
         'is_leader': 1 if data.get('is_leader') else 0,
     })
@@ -293,7 +291,6 @@ def add_player(team_id):
         'telegram': data.get('telegram', '').strip(),
         'discord': data.get('discord', '').strip(),
         'role': data.get('role', '') or '',
-        'rank': data.get('rank', '') or '',
         'is_reserve': 1 if data.get('is_reserve') else 0,
         'is_leader': 1 if data.get('is_leader') else 0,
         'kills': 0, 'deaths': 0, 'assists': 0, 'rating': 0.0,
