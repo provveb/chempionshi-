@@ -345,6 +345,40 @@ textarea{resize:vertical;min-height:80px}
 /* SVG ICONS */
 svg{display:inline-block;vertical-align:middle}
 
+/* ADMIN BRACKET BUILDER */
+.ab-grid{display:flex;flex-direction:column;gap:12px}
+.ab-match{
+  background:var(--bg3);border:1px solid var(--border2);border-radius:10px;
+  padding:12px 16px;display:grid;grid-template-columns:120px 1fr 1fr 56px 56px 90px;
+  gap:10px;align-items:center;transition:border-color 0.2s;
+}
+.ab-slot{
+  background:var(--bg4);border:1.5px dashed var(--border3);border-radius:8px;
+  padding:9px 12px;min-height:20px;display:flex;align-items:center;gap:8px;
+  font-size:13px;font-weight:600;transition:all 0.15s;
+}
+.ab-slot.filled{border-style:solid;border-color:var(--border2)}
+.ab-slot.dragover{border-color:var(--accent);background:rgba(232,160,32,0.1)}
+.ab-slot-empty{color:var(--text3);font-weight:500;font-size:12px}
+.ab-slot-team{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ab-slot-clear{
+  background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;
+  line-height:1;padding:0 2px;flex-shrink:0;
+}
+.ab-slot-clear:hover{color:var(--red)}
+.ab-score{
+  width:100%;text-align:center;background:var(--bg4);border:1px solid var(--border2);
+  border-radius:6px;padding:8px 4px;color:var(--text);font-size:13px;font-weight:700;
+}
+.ab-teams-row{display:flex;flex-wrap:wrap;gap:10px}
+.ab-team-chip{
+  background:var(--bg4);border:1px solid var(--border2);border-radius:20px;
+  padding:7px 14px 7px 8px;font-size:13px;font-weight:600;cursor:grab;
+  display:flex;align-items:center;gap:8px;user-select:none;transition:all 0.15s;
+}
+.ab-team-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.ab-team-chip:active{cursor:grabbing;opacity:0.6}
+
 /* BRACKET VISUAL */
 .bk-layout{
   display:flex;align-items:stretch;justify-content:center;
@@ -1627,45 +1661,31 @@ svg{display:inline-block;vertical-align:middle}
           <div id="st-players"></div>
         </div>
 
-        <!-- BRACKET -->
+        <!-- BRACKET BUILDER -->
         <div class="panel" id="p-bracket">
-          <!-- Auto bracket -->
           <div class="card mb-4">
-            <div class="card-head"><div class="card-title">⚡ AVTOMATIK BRACKET</div></div>
-            <div class="card-body">
-              <p class="text-sm text-d mb-4">Tasdiqlangan jamoalar statistika asosida avtomatik juftlanadi (1v8, 2v7, 3v6, 4v5). Rejalashtirilgan o'yinlar o'chiriladi.</p>
-              <button class="btn btn-outline" onclick="genBracket()">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                Avtomatik yaratish
+            <div class="card-head">
+              <div class="card-title">🏆 BRACKET QURISH</div>
+              <button class="btn btn-outline btn-xs" onclick="resetBracket()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                Tozalash
               </button>
             </div>
-          </div>
-
-          <!-- Manual bracket -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-title">🎯 QO'LDA BRACKET YARATISH</div>
-            </div>
             <div class="card-body">
-              <p class="text-sm text-d mb-4">Har bir juftlikda qaysi jamoa kimga qarshi o'ynashini o'zingiz tanlang. Jamoalar cheklanmagan.</p>
-
-              <div id="manual-pairs-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px"></div>
-
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button class="btn btn-outline" onclick="addManualPair()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  Juftlik qo'shish
-                </button>
-                <button class="btn btn-primary" onclick="saveManualBracket()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                  Bracketni saqlash
-                </button>
-              </div>
+              <p class="text-sm text-d mb-4">Pastdagi jamoani sudrab (drag) kerakli katakka tashlang. O'yin tugagach natijani kiriting va saqlang — g'olib avtomatik keyingi bosqichga o'tadi.</p>
+              <div id="ab-grid" class="ab-grid"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">JAMOALAR</div></div>
+            <div class="card-body">
+              <div id="ab-teams" class="ab-teams-row"></div>
             </div>
           </div>
         </div>
 
         <!-- SETTINGS -->
+<!-- SETTINGS -->
         <div class="panel" id="p-settings">
           <div class="card">
             <div class="card-head"><div class="card-title">TURNIR SOZLAMALARI</div></div>
@@ -1694,6 +1714,21 @@ svg{display:inline-block;vertical-align:middle}
               <button class="btn btn-primary" onclick="saveSettings()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Saqlash
+              </button>
+            </div>
+          </div>
+
+          <!-- PAROLNI O'ZGARTIRISH -->
+          <div class="card mt-4">
+            <div class="card-head"><div class="card-title">🔒 ADMIN PAROLINI O'ZGARTIRISH</div></div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-g"><label>Joriy parol</label><input id="pw-current" type="password" placeholder="Joriy parolingiz"></div>
+                <div class="form-g"><label>Yangi parol</label><input id="pw-new" type="password" placeholder="Kamida 6 ta belgi"></div>
+              </div>
+              <button class="btn btn-outline" onclick="changeAdminPassword()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Parolni yangilash
               </button>
             </div>
           </div>
@@ -2596,7 +2631,7 @@ async function doLogin() {
 async function doLogout(){await api('/api/admin/logout',{method:'POST'});showLogin()}
 
 // ── ADMIN PANELS ──────────────────────────────────────────────────────────────
-// aPanel is defined below with bracket team loading support
+// aPanel is defined below
 
 async function loadOv() {
   const [st,teams]=await Promise.all([api('/api/admin/stats/overview'),api('/api/admin/teams')]);
@@ -2773,17 +2808,6 @@ async function saveStats(pid){
   }
 }
 
-async function genBracket(){
-  if(!confirm('Bracket yaratilsinmi? Mavjud rejalashtirilgan o\'yinlar o\'chiriladi.'))return;
-  const r=await api('/api/admin/bracket/generate',{method:'POST'});
-  alert(r.ok?`Bracket yaratildi! ${r.pairs} ta juftlik.`:'Xato: '+r.error);
-  if(r.ok){ loadBracket(); aPanel('bracket'); }
-}
-
-// ── MANUAL BRACKET ─────────────────────────────────────────────────────────
-let _manualTeams = [];
-let _pairCount = 0;
-
 async function aPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
@@ -2798,113 +2822,91 @@ async function aPanel(name) {
   else if (name === 'matches') loadAMatches();
   else if (name === 'stats') loadStatsPanel();
   else if (name === 'settings') loadSettings();
-  else if (name === 'bracket') {
-    const teams = await api('/api/admin/teams');
-    _manualTeams = teams.filter(t => t.status === 'approved');
-    document.querySelectorAll('.manual-pair-row').forEach(row => {
-      updatePairSelects(row.dataset.pid);
-    });
-    if (!document.querySelector('.manual-pair-row')) addManualPair();
-  }
+  else if (name === 'bracket') loadBracketAdmin();
 }
 
-function teamOptions(selectedId) {
-  const bye = `<option value="">— BYE (bo'sh) —</option>`;
-  return bye + _manualTeams.map(t =>
-    `<option value="${t.id}" ${t.id == selectedId ? 'selected' : ''}>${t.name}</option>`
-  ).join('');
+// ── BRACKET BUILDER (drag & drop) ────────────────────────────────────────────
+const AB_POS = ['QF1','QF2','QF3','QF4','SF1','SF2','GF'];
+const AB_LABEL = {QF1:'Chorak final 1',QF2:'Chorak final 2',QF3:'Chorak final 3',QF4:'Chorak final 4',SF1:'Yarim final 1',SF2:'Yarim final 2',GF:'Final'};
+let _abDragTeamId = null;
+
+async function loadBracketAdmin(){
+  const [teams, bracketRes] = await Promise.all([api('/api/admin/teams'), api('/api/admin/bracket')]);
+  const approved = teams.filter(t=>t.status==='approved');
+  const byId = {}; approved.forEach(t=>byId[t.id]=t);
+  const bmap = {};
+  (bracketRes.matches||[]).forEach(m=>bmap[m.bracket_pos]=m);
+
+  const placedIds = new Set();
+  Object.values(bmap).forEach(m=>{ if(m.team1_id) placedIds.add(m.team1_id); if(m.team2_id) placedIds.add(m.team2_id); });
+
+  document.getElementById('ab-grid').innerHTML = AB_POS.map(pos=>{
+    const m = bmap[pos] || {};
+    const t1 = byId[m.team1_id], t2 = byId[m.team2_id];
+    const finished = m.status === 'finished';
+    const slotHtml = (t, slot) => t
+      ? `<div class="ab-slot filled" data-pos="${pos}" data-slot="${slot}" ondragover="abDragOver(event)" ondragleave="abDragLeave(event)" ondrop="abDrop(event)">
+           <span class="ab-slot-team">${t.name}</span>
+           ${finished ? '' : `<button class="ab-slot-clear" onclick="abClearSlot('${pos}',${slot})" title="Bo'shatish">×</button>`}
+         </div>`
+      : `<div class="ab-slot" data-pos="${pos}" data-slot="${slot}" ondragover="abDragOver(event)" ondragleave="abDragLeave(event)" ondrop="abDrop(event)">
+           <span class="ab-slot-empty">Jamoa tashlang</span>
+         </div>`;
+    return `
+    <div class="ab-match">
+      <div class="text-xs text-d fw-7">${AB_LABEL[pos]}</div>
+      ${slotHtml(t1,1)}
+      ${slotHtml(t2,2)}
+      <input type="number" min="0" class="ab-score" id="ab-s1-${pos}" placeholder="-" value="${m.score1||''}" ${finished?'disabled':''}>
+      <input type="number" min="0" class="ab-score" id="ab-s2-${pos}" placeholder="-" value="${m.score2||''}" ${finished?'disabled':''}>
+      ${finished
+        ? `<span class="tag tag-green" style="justify-self:center">Yakunlangan</span>`
+        : `<button class="btn btn-xs btn-primary" onclick="abSaveResult('${pos}')" ${(!t1||!t2)?'disabled':''}>Saqlash</button>`}
+    </div>`;
+  }).join('');
+
+  const pool = approved.filter(t=>!placedIds.has(t.id));
+  document.getElementById('ab-teams').innerHTML = pool.length
+    ? pool.map(t=>`<div class="ab-team-chip" draggable="true" ondragstart="abTeamDragStart(event)" data-team-id="${t.id}">${t.name}</div>`).join('')
+    : `<span class="text-d text-sm">Barcha jamoalar joylashtirildi</span>`;
 }
 
-function updatePairSelects(pid) {
-  const s1 = document.getElementById(`mp-t1-${pid}`);
-  const s2 = document.getElementById(`mp-t2-${pid}`);
-  if (!s1 || !s2) return;
-  const v1 = s1.value, v2 = s2.value;
-  s1.innerHTML = teamOptions(v1);
-  s2.innerHTML = teamOptions(v2);
+function abTeamDragStart(e){
+  const el = e.currentTarget || e.target.closest('[data-team-id]');
+  _abDragTeamId = parseInt(el.dataset.teamId);
+  e.dataTransfer.setData('text/plain', String(_abDragTeamId));
+  e.dataTransfer.effectAllowed = 'move';
 }
-
-function addManualPair() {
-  _pairCount++;
-  const pid = _pairCount;
-  const stages = ['Quarterfinals','Semifinals','Grand Final','Group Stage','Playoff'];
-  const stageOpts = stages.map(s => `<option value="${s}">${s}</option>`).join('');
-
-  const row = document.createElement('div');
-  row.className = 'manual-pair-row';
-  row.dataset.pid = pid;
-  row.style.cssText = 'background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px';
-
-  row.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Juftlik #${pid}</span>
-      <button onclick="removePair(${pid})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;line-height:1">×</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center">
-      <div>
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">1-JAMOA</label>
-        <select id="mp-t1-${pid}" style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:8px;border-radius:6px;font-size:13px">
-          ${teamOptions('')}
-        </select>
-      </div>
-      <div style="font-weight:700;color:var(--accent);font-size:16px;padding-top:16px">VS</div>
-      <div>
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">2-JAMOA</label>
-        <select id="mp-t2-${pid}" style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:8px;border-radius:6px;font-size:13px">
-          ${teamOptions('')}
-        </select>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div>
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">BOSQICH</label>
-        <select id="mp-stage-${pid}" style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:8px;border-radius:6px;font-size:13px">
-          ${stageOpts}
-        </select>
-      </div>
-      <div>
-        <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">XARITA</label>
-        <input id="mp-map-${pid}" type="text" value="TBD" placeholder="Mirage, Dust2..." style="width:100%;background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:8px;border-radius:6px;font-size:13px">
-      </div>
-    </div>
-  `;
-  document.getElementById('manual-pairs-list').appendChild(row);
+function abDragOver(e){ e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+function abDragLeave(e){ e.currentTarget.classList.remove('dragover'); }
+async function abDrop(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  const teamId = _abDragTeamId || parseInt(e.dataTransfer.getData('text/plain'));
+  if(!teamId) return;
+  const pos = e.currentTarget.dataset.pos, slot = parseInt(e.currentTarget.dataset.slot);
+  const r = await api('/api/admin/bracket/slot', {method:'POST', body: JSON.stringify({bracket_pos:pos, slot, team_id: teamId})});
+  _abDragTeamId = null;
+  if(!r.ok) alert('Xato: '+(r.error||''));
+  loadBracketAdmin();
 }
-
-function removePair(pid) {
-  const row = document.querySelector(`.manual-pair-row[data-pid="${pid}"]`);
-  if (row) row.remove();
+async function abClearSlot(pos, slot){
+  await api('/api/admin/bracket/slot', {method:'POST', body: JSON.stringify({bracket_pos:pos, slot, team_id: null})});
+  loadBracketAdmin();
 }
-
-async function saveManualBracket() {
-  const rows = document.querySelectorAll('.manual-pair-row');
-  if (!rows.length) { alert('Kamida 1 ta juftlik qo\'shing!'); return; }
-
-  const pairs = [];
-  let hasError = false;
-  rows.forEach(row => {
-    const pid = row.dataset.pid;
-    const t1 = document.getElementById(`mp-t1-${pid}`).value;
-    const t2 = document.getElementById(`mp-t2-${pid}`).value;
-    const stage = document.getElementById(`mp-stage-${pid}`).value;
-    const map = document.getElementById(`mp-map-${pid}`).value || 'TBD';
-    if (!t1) { alert(`Juftlik #${pid}: 1-jamoani tanlang!`); hasError = true; return; }
-    pairs.push({ team1_id: parseInt(t1), team2_id: t2 ? parseInt(t2) : null, stage, map });
-  });
-
-  if (hasError) return;
-  if (!confirm(`${pairs.length} ta juftlik saqlansinmi? Mavjud rejalashtirilgan o'yinlar o'chiriladi.`)) return;
-
-  const r = await api('/api/admin/bracket/manual', { method: 'POST', body: JSON.stringify({ pairs, clear_scheduled: true }) });
-  if (r.ok) {
-    alert(`✅ ${r.created} ta o'yin yaratildi!`);
-    // Clear pairs list
-    document.getElementById('manual-pairs-list').innerHTML = '';
-    _pairCount = 0;
-    loadBracket();
-  } else {
-    alert('Xato: ' + r.error);
-  }
+async function abSaveResult(pos){
+  const s1 = document.getElementById(`ab-s1-${pos}`).value;
+  const s2 = document.getElementById(`ab-s2-${pos}`).value;
+  if(s1===''||s2===''){ alert("Ikkala natijani ham kiriting!"); return; }
+  if(s1===s2){ alert("Durrang bo'lishi mumkin emas, g'olibni aniqlang!"); return; }
+  const r = await api(`/api/admin/bracket/${pos}/result`, {method:'PUT', body: JSON.stringify({score1:parseInt(s1), score2:parseInt(s2)})});
+  if(r.ok) loadBracketAdmin();
+  else alert('Xato: '+(r.error||''));
+}
+async function resetBracket(){
+  if(!confirm("Butun bracket tozalansinmi? Barcha bracket o'yinlari o'chiriladi (statistika saqlanib qoladi)."))return;
+  await api('/api/admin/bracket/reset', {method:'POST'});
+  loadBracketAdmin();
 }
 
 async function loadSettings(){
@@ -2930,7 +2932,20 @@ async function saveSettings(){
   })});
   if(res.ok) alert('Sozlamalar saqlandi!');
 }
-
+async function changeAdminPassword(){
+  const current = document.getElementById('pw-current').value;
+  const newPw = document.getElementById('pw-new').value;
+  if(!current || !newPw){ alert("Ikkala maydonni ham to'ldiring!"); return; }
+  if(newPw.length < 6){ alert("Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak!"); return; }
+  const r = await api('/api/admin/password', {method:'PUT', body: JSON.stringify({current_password: current, new_password: newPw})});
+  if(r.ok){
+    alert("✅ Parol muvaffaqiyatli yangilandi!");
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+  } else {
+    alert('Xato: ' + (r.error || "Noma'lum xatolik"));
+  }
+}
 // ── MODALS ────────────────────────────────────────────────────────────────────
 function openM(id){document.getElementById(id).classList.add('open')}
 function closeM(id){document.getElementById(id).classList.remove('open')}
