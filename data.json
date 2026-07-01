@@ -691,7 +691,7 @@
   "matches": [
     {
       "id": 6,
-      "team1_id": 18,
+      "team1_id": null,
       "team2_id": 14,
       "score1": 0,
       "score2": 0,
