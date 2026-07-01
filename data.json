@@ -705,7 +705,7 @@
     },
     {
       "id": 7,
-      "team1_id": 13,
+      "team1_id": null,
       "team2_id": 16,
       "score1": 0,
       "score2": 0,
