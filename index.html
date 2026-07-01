@@ -49,6 +49,7 @@ nav{
   animation:pulse 1.4s infinite;display:none;
 }
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .live-badge{font-size:11px;font-weight:700;color:var(--red);letter-spacing:1px;display:none}
 
 /* PAGES */
@@ -976,7 +977,7 @@ svg{display:inline-block;vertical-align:middle}
         <div id="review-wrap"></div>
         <div class="alert alert-warn mt-4">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
-          Ro'yxatdan o'tgach admin tasdiqlashini kuting. Natija Telegram orqali yuboriladi.
+          Ariza yuborilgach, <b>@pro_vveb</b> admin ko'rib chiqadi va 24 soat ichida natijani sizga bildiradi.
         </div>
         <div class="flex jc-sb mt-4">
           <button class="btn btn-ghost" onclick="toStep(2)">
@@ -2509,7 +2510,7 @@ function buildReview() {
 
 async function submitReg() {
   const btn=document.getElementById('sub-btn');
-  btn.disabled=true; btn.textContent='Yuborilmoqda...';
+  btn.disabled=true; btn.innerHTML=`<span style="display:inline-flex;align-items:center;gap:10px"><svg style="animation:spin 0.8s linear infinite" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Yuborilmoqda...</span>`;
   const body={
     name: document.getElementById('rn').value.trim(),
     captain_name: document.getElementById('rcn').value.trim(),
@@ -2526,7 +2527,12 @@ async function submitReg() {
       <div class="card-body">
         <div class="alert alert-ok">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          <div>Jamoangiz muvaffaqiyatli ro'yxatdan o'tdi! Admin tasdiqlashini kuting. Natijani <b>${body.contact}</b> orqali bilib olasiz.</div>
+          <div>
+  ✅ <b>Arizangiz qabul qilindi!</b><br><br>
+  Jamoangiz ro'yxatga muvaffaqiyatli kiritildi. Admin <b>@pro_vveb</b> arizangizni ko'rib chiqib, 
+  <b>24 soat ichida</b> <b>${body.contact}</b> ga javob beradi.<br><br>
+  Savollar bo'lsa: <a href="https://t.me/pro_vveb" target="_blank" style="color:var(--accent)">@pro_vveb</a> ga murojaat qiling.
+</div>
         </div>
         <button class="btn btn-outline mt-4" onclick="showPage('home')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
