@@ -86,10 +86,10 @@
       "contact": "@turgunovssss",
       "logo_url": "https://github.com/provveb/chempionshi-/blob/main/pro%20gamersz.jpg?raw=true",
       "status": "approved",
-      "points": 3,
-      "wins": 1,
+      "points": 0,
+      "wins": 0,
       "losses": 0,
-      "maps_won": 24,
+      "maps_won": 0,
       "maps_lost": 0,
       "created_at": "2026-07-01T03:49:28.081953"
     },
@@ -104,9 +104,9 @@
       "status": "approved",
       "points": 0,
       "wins": 0,
-      "losses": 1,
+      "losses": 0,
       "maps_won": 0,
-      "maps_lost": 12,
+      "maps_lost": 0,
       "created_at": "2026-07-01T06:26:28.758288"
     }
   ],
@@ -691,16 +691,16 @@
   "matches": [
     {
       "id": 9,
-      "team1_id": 18,
-      "team2_id": 16,
-      "score1": 12,
-      "score2": 24,
+      "team1_id": null,
+      "team2_id": null,
+      "score1": 0,
+      "score2": 0,
       "map": "TBD",
       "stage": "Quarterfinals",
-      "status": "finished",
-      "winner_id": 16,
+      "status": "scheduled",
+      "winner_id": null,
       "scheduled_at": "",
-      "played_at": "2026-07-01T10:51:16.803977",
+      "played_at": null,
       "bracket_pos": "QF1"
     }
   ],
