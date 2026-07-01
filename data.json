@@ -54,10 +54,10 @@
       "contact": "@wthme721",
       "logo_url": "https://github.com/provveb/chempionshi-/blob/main/raven.jpg?raw=true",
       "status": "approved",
-      "points": 3,
-      "wins": 1,
+      "points": 6,
+      "wins": 2,
       "losses": 0,
-      "maps_won": 12,
+      "maps_won": 25,
       "maps_lost": 0,
       "created_at": "2026-06-30 09:24:25"
     },
@@ -72,9 +72,9 @@
       "status": "approved",
       "points": 0,
       "wins": 0,
-      "losses": 0,
+      "losses": 1,
       "maps_won": 0,
-      "maps_lost": 0,
+      "maps_lost": 6,
       "created_at": "2026-06-30 09:48:25"
     },
     {
@@ -707,14 +707,14 @@
       "id": 3,
       "team1_id": 14,
       "team2_id": 13,
-      "score1": 0,
-      "score2": 0,
+      "score1": 6,
+      "score2": 13,
       "map": "TBD",
       "stage": "Quarterfinals",
-      "status": "scheduled",
-      "winner_id": null,
+      "status": "finished",
+      "winner_id": 13,
       "scheduled_at": "",
-      "played_at": null,
+      "played_at": "2026-07-01T10:40:29.148724",
       "bracket_pos": "QF2"
     },
     {
@@ -730,11 +730,25 @@
       "scheduled_at": "",
       "played_at": "2026-07-01T10:39:58.976054",
       "bracket_pos": "QF3"
+    },
+    {
+      "id": 5,
+      "team1_id": null,
+      "team2_id": 13,
+      "score1": 0,
+      "score2": 0,
+      "map": "TBD",
+      "stage": "Semifinals",
+      "status": "scheduled",
+      "winner_id": null,
+      "scheduled_at": "",
+      "played_at": null,
+      "bracket_pos": "SF1"
     }
   ],
   "next_ids": {
     "team": 19,
     "player": 103,
-    "match": 5
+    "match": 6
   }
 }
