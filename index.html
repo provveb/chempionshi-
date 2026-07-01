@@ -1685,7 +1685,6 @@ svg{display:inline-block;vertical-align:middle}
         </div>
 
         <!-- SETTINGS -->
-<!-- SETTINGS -->
         <div class="panel" id="p-settings">
           <div class="card">
             <div class="card-head"><div class="card-title">TURNIR SOZLAMALARI</div></div>
@@ -1714,21 +1713,6 @@ svg{display:inline-block;vertical-align:middle}
               <button class="btn btn-primary" onclick="saveSettings()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Saqlash
-              </button>
-            </div>
-          </div>
-
-          <!-- PAROLNI O'ZGARTIRISH -->
-          <div class="card mt-4">
-            <div class="card-head"><div class="card-title">🔒 ADMIN PAROLINI O'ZGARTIRISH</div></div>
-            <div class="card-body">
-              <div class="form-row">
-                <div class="form-g"><label>Joriy parol</label><input id="pw-current" type="password" placeholder="Joriy parolingiz"></div>
-                <div class="form-g"><label>Yangi parol</label><input id="pw-new" type="password" placeholder="Kamida 6 ta belgi"></div>
-              </div>
-              <button class="btn btn-outline" onclick="changeAdminPassword()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Parolni yangilash
               </button>
             </div>
           </div>
@@ -2142,24 +2126,13 @@ async function saveTeamEdit(tid) {
 
 // ── BRACKET ──────────────────────────────────────────────────────────────────
 async function loadBracket() {
-  const [teams, matches] = await Promise.all([api('/api/teams'), api('/api/matches')]);
+  const matches = await api('/api/matches');
 
-  // Seed teams by points desc, then wins desc (best vs worst pairing)
-  const seeded = [...teams].sort((a,b) => (b.points - a.points) || (b.wins - a.wins));
+  // Admin tomonidan yaratilgan bracket o'yinlarini bracket_pos bo'yicha xaritalash
+  const byPos = {};
+  matches.forEach(m => { if (m.bracket_pos) byPos[m.bracket_pos] = m; });
 
-  // Build bracket slots: 8 max, pad with TBD
-  const slots = [];
-  for(let i=0;i<8;i++) slots.push(seeded[i]||null);
-
-  // Classic seeding matchups: 1v8, 4v5, 3v6, 2v7
-  const qfPairs = [[0,7],[3,4],[2,5],[1,6]]; // indices into slots
-
-  // Map DB matches by stage
-  const qfMatches  = matches.filter(m=>m.stage==='Quarterfinals'||m.stage==='Group Stage');
-  const sfMatches  = matches.filter(m=>m.stage==='Semifinals');
-  const finMatches = matches.filter(m=>m.stage==='Grand Final'||m.stage==='Final');
-
-  renderBracket(slots, qfPairs, qfMatches, sfMatches, finMatches);
+  renderBracket(byPos);
 
   // Match table
   const tb = document.getElementById('bracket-table');
@@ -2175,33 +2148,27 @@ async function loadBracket() {
   </tr>`).join('');
 }
 
-function renderBracket(slots, qfPairs, qfM, sfM, finM) {
+function renderBracket(byPos) {
   const grid = document.getElementById('bracket-grid');
   const wrap = document.getElementById('bracket-canvas-wrap');
 
   // ── helpers ──
-  function teamSlot(team, matchObj, side, seedNum) {
-    if(!team && !matchObj) {
-      return `<div class="bk-slot bk-tbd"><span class="bk-seed">—</span><span class="bk-name">TBD</span><span class="bk-score">-</span></div>`;
+  function teamSlot(matchObj, side) {
+    if(!matchObj) {
+      return `<div class="bk-slot bk-tbd"><span class="bk-name">TBD</span><span class="bk-score">-</span></div>`;
     }
-    // Determine from DB match
     let name='TBD', score='-', isWin=false, isPending=false;
-    if(matchObj) {
-      if(side==='t1'){ name=matchObj.team1_name||'TBD'; score=matchObj.score1??'-'; isWin=matchObj.winner_id===matchObj.team1_id&&matchObj.status==='finished'; }
-      else           { name=matchObj.team2_name||'TBD'; score=matchObj.score2??'-'; isWin=matchObj.winner_id===matchObj.team2_id&&matchObj.status==='finished'; }
-      isPending = matchObj.status==='scheduled';
-    } else if(team) {
-      name=team.name; score='-'; isPending=true;
-    }
+    if(side==='t1'){ name=matchObj.team1_name||'TBD'; score=matchObj.score1??'-'; isWin=matchObj.winner_id===matchObj.team1_id&&matchObj.status==='finished'; }
+    else           { name=matchObj.team2_name||'TBD'; score=matchObj.score2??'-'; isWin=matchObj.winner_id===matchObj.team2_id&&matchObj.status==='finished'; }
+    isPending = matchObj.status==='scheduled';
     const cls = isWin?'bk-slot bk-win':isPending?'bk-slot bk-pending':'bk-slot bk-loss';
     return `<div class="${cls}">
-      <span class="bk-seed">${seedNum||'?'}</span>
       <span class="bk-name">${name}</span>
       <span class="bk-score">${score}</span>
     </div>`;
   }
 
-  function matchBlock(id, m, t1, t2, seed1, seed2, roundLabel) {
+  function matchBlock(id, m, roundLabel) {
     const status = m ? (m.status==='finished'?'finished':m.status==='live'?'live':m.status==='scheduled'?'scheduled':'pending') : 'pending';
     const statusCls = status==='finished'?'bk-status-done':status==='live'?'bk-status-live':status==='scheduled'?'bk-status-soon':'bk-status-pending';
     const statusTxt = status==='finished'
@@ -2213,9 +2180,9 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
     : 'Kutilmoqda <span class="waiting-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
     return `<div class="bk-match" id="${id}">
       <div class="bk-match-inner">
-        ${teamSlot(t1, m, 't1', seed1)}
+        ${teamSlot(m, 't1')}
         <div class="bk-divider"></div>
-        ${teamSlot(t2, m, 't2', seed2)}
+        ${teamSlot(m, 't2')}
       </div>
       <div class="bk-match-label">
         <span class="bk-round-lbl">${roundLabel}</span>
@@ -2224,24 +2191,10 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
     </div>`;
   }
 
-  // ── Build 3-round layout ──
-  // QF: 4 matches in pairs (top 2, bottom 2)
-  // SF: 2 matches
-  // F: 1 match + trophy
-
-  const qfHTML = qfPairs.map((pair,i) => {
-    const t1=slots[pair[0]], t2=slots[pair[1]];
-    const dbM = qfM[i]||null;
-    const s1=pair[0]+1, s2=pair[1]+1;
-    return matchBlock(`bk-qf-${i}`, dbM, t1, t2, s1, s2, `ChorakFinal ${i+1}`);
-  }).join('');
-
-  const sfHTML = [0,1].map(i=>{
-    const dbM=sfM[i]||null;
-    return matchBlock(`bk-sf-${i}`, dbM, null, null, null, null, `YarimFinal ${i+1}`);
-  }).join('');
-
-  const finHTML = matchBlock('bk-fin-0', finM[0]||null, null, null, null, null, 'GRAND FINAL');
+  // ── Build 3-round layout, har biri to'g'ridan-to'g'ri bracket_pos bo'yicha ──
+  const qf1 = byPos['QF1']||null, qf2 = byPos['QF2']||null, qf3 = byPos['QF3']||null, qf4 = byPos['QF4']||null;
+  const sf1 = byPos['SF1']||null, sf2 = byPos['SF2']||null;
+  const gf  = byPos['GF']||null;
 
   grid.innerHTML = `
     <div class="bk-layout">
@@ -2249,8 +2202,8 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
       <div class="bk-col bk-col-qf left" style="align-self:stretch">
         <div class="bk-col-title">CHORAK FINAL</div>
         <div class="bk-col-matches" id="bk-left-qf">
-          ${matchBlock('bk-qf-0', qfM[0]||null, slots[qfPairs[0][0]], slots[qfPairs[0][1]], qfPairs[0][0]+1, qfPairs[0][1]+1, 'QF 1')}
-          ${matchBlock('bk-qf-1', qfM[1]||null, slots[qfPairs[1][0]], slots[qfPairs[1][1]], qfPairs[1][0]+1, qfPairs[1][1]+1, 'QF 2')}
+          ${matchBlock('bk-qf-0', qf1, 'QF 1')}
+          ${matchBlock('bk-qf-1', qf2, 'QF 2')}
         </div>
       </div>
 
@@ -2258,7 +2211,7 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
       <div class="bk-col bk-col-sf left" style="align-self:stretch">
         <div class="bk-col-title">YARIM FINAL</div>
         <div class="bk-col-matches" id="bk-left-sf">
-          ${matchBlock('bk-sf-0', sfM[0]||null, null, null, null, null, 'SF 1')}
+          ${matchBlock('bk-sf-0', sf1, 'SF 1')}
         </div>
       </div>
 
@@ -2271,7 +2224,7 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
      height="150"
      style="object-fit:contain">        </div>
         <div class="bk-col-matches" id="bk-fin">
-          ${matchBlock('bk-fin-0', finM[0]||null, null, null, null, null, 'GRAND FINAL')}
+          ${matchBlock('bk-fin-0', gf, 'GRAND FINAL')}
         </div>
         <div id="bk-champion-box" class="bk-champion" style="display:none"></div>
       </div>
@@ -2280,7 +2233,7 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
       <div class="bk-col bk-col-sf right" style="align-self:stretch">
         <div class="bk-col-title">YARIM FINAL</div>
         <div class="bk-col-matches" id="bk-right-sf">
-          ${matchBlock('bk-sf-1', sfM[1]||null, null, null, null, null, 'SF 2')}
+          ${matchBlock('bk-sf-1', sf2, 'SF 2')}
         </div>
       </div>
 
@@ -2288,15 +2241,15 @@ function renderBracket(slots, qfPairs, qfM, sfM, finM) {
       <div class="bk-col bk-col-qf right" style="align-self:stretch">
         <div class="bk-col-title">CHORAK FINAL</div>
         <div class="bk-col-matches" id="bk-right-qf">
-          ${matchBlock('bk-qf-2', qfM[2]||null, slots[qfPairs[2][0]], slots[qfPairs[2][1]], qfPairs[2][0]+1, qfPairs[2][1]+1, 'QF 3')}
-          ${matchBlock('bk-qf-3', qfM[3]||null, slots[qfPairs[3][0]], slots[qfPairs[3][1]], qfPairs[3][0]+1, qfPairs[3][1]+1, 'QF 4')}
+          ${matchBlock('bk-qf-2', qf3, 'QF 3')}
+          ${matchBlock('bk-qf-3', qf4, 'QF 4')}
         </div>
       </div>
     </div>`;
 
   // Show champion if final finished
-  if(finM[0]&&finM[0].winner_id&&finM[0].status==='finished') {
-    const winner = finM[0].winner_name || (finM[0].winner_id===finM[0].team1_id?finM[0].team1_name:finM[0].team2_name);
+  if(gf && gf.winner_id && gf.status==='finished') {
+    const winner = gf.winner_name || (gf.winner_id===gf.team1_id?gf.team1_name:gf.team2_name);
     document.getElementById('bk-champion-box').style.display='';
     document.getElementById('bk-champion-box').innerHTML=`
       <div>🏆</div>
@@ -2932,20 +2885,7 @@ async function saveSettings(){
   })});
   if(res.ok) alert('Sozlamalar saqlandi!');
 }
-async function changeAdminPassword(){
-  const current = document.getElementById('pw-current').value;
-  const newPw = document.getElementById('pw-new').value;
-  if(!current || !newPw){ alert("Ikkala maydonni ham to'ldiring!"); return; }
-  if(newPw.length < 6){ alert("Yangi parol kamida 6 ta belgidan iborat bo'lishi kerak!"); return; }
-  const r = await api('/api/admin/password', {method:'PUT', body: JSON.stringify({current_password: current, new_password: newPw})});
-  if(r.ok){
-    alert("✅ Parol muvaffaqiyatli yangilandi!");
-    document.getElementById('pw-current').value = '';
-    document.getElementById('pw-new').value = '';
-  } else {
-    alert('Xato: ' + (r.error || "Noma'lum xatolik"));
-  }
-}
+
 // ── MODALS ────────────────────────────────────────────────────────────────────
 function openM(id){document.getElementById(id).classList.add('open')}
 function closeM(id){document.getElementById(id).classList.remove('open')}
