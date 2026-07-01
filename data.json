@@ -688,21 +688,7 @@
       "rating": 0.0
     }
   ],
-  "matches": [
-    {
-      "id": 1,
-      "team1_id": "18",
-      "team2_id": "16",
-      "score1": 0,
-      "score2": 0,
-      "map": "de_dust2",
-      "stage": "Quarterfinals",
-      "status": "scheduled",
-      "winner_id": null,
-      "scheduled_at": "2026-07-02T15:15",
-      "played_at": null
-    }
-  ],
+  "matches": [],
   "next_ids": {
     "team": 19,
     "player": 103,
