@@ -1,101 +1,71 @@
 """
-tournament.db faylini GitHub repo'siga avtomatik push qilish.
+github_sync.py — data.json faylini GitHub repo'ga avtomatik commit qiladi.
 
-Kerakli environment variable'lar (Render'da o'rnatiladi):
-  GITHUB_TOKEN  - Fine-grained Personal Access Token (Contents: Read and write)
-  GITHUB_REPO   - masalan: "provveb/chempionshi"
-  GITHUB_BRANCH - masalan: "main" (ixtiyoriy, default "main")
-  DB_PATH_IN_REPO - repo ichidagi fayl yo'li, masalan "tournament.db" (ixtiyoriy)
+Kerakli environment-o'zgaruvchilar (Render → Environment bo'limida sozlanadi):
+    GITHUB_TOKEN     — GitHub Personal Access Token (repo yozish huquqi bilan)
+    GITHUB_REPO      — "username/repo-nomi" formatida
+    GITHUB_BRANCH    — odatda "main" (default: main)
+    GITHUB_DATA_PATH — repo ichidagi fayl yo'li (default: data.json)
+
+Bu fayl commit qilinganda, agar Render'da "Auto-Deploy" yoqilgan bo'lsa,
+Render avtomatik ravishda qayta deploy qiladi va saytdagi ma'lumotlar yangilanadi.
 """
+
 import os
 import base64
-import threading
-import time
+import logging
+
 import requests
 
-GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
-GITHUB_REPO = os.environ.get('GITHUB_REPO', 'provveb/chempionshi')
-GITHUB_BRANCH = os.environ.get('GITHUB_BRANCH', 'main')
-DB_PATH_IN_REPO = os.environ.get('DB_PATH_IN_REPO', 'tournament.db')
-LOCAL_DB_PATH = 'tournament.db'
+log = logging.getLogger("github_sync")
 
-API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{DB_PATH_IN_REPO}"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_REPO = os.environ.get("GITHUB_REPO")          # masalan: "samir/cs2-tournament"
+GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
+GITHUB_DATA_PATH = os.environ.get("GITHUB_DATA_PATH", "data.json")
 
-_dirty = False
-_lock = threading.Lock()
-_DEBOUNCE_SECONDS = 20  # tez-tez push qilavermaslik uchun kutish vaqti
+API_URL = "https://api.github.com/repos/{repo}/contents/{path}"
 
 
-def mark_dirty():
-    """Baza o'zgartirilganda chaqiriladi (after_request orqali)."""
-    global _dirty
-    with _lock:
-        _dirty = True
+def is_configured() -> bool:
+    return bool(GITHUB_TOKEN and GITHUB_REPO)
 
 
-def _get_remote_sha():
-    """Faylning GitHub'dagi joriy sha'sini olish (update uchun shart)."""
+def push_to_github(local_file_path: str, message: str = "Update tournament data") -> bool:
+    """Mahalliy faylni o'qiydi va GitHub'dagi shu fayl bilan almashtiradi (commit qiladi)."""
+    if not is_configured():
+        log.warning("GITHUB_TOKEN yoki GITHUB_REPO sozlanmagan — GitHub sinxronizatsiya o'tkazib yuborildi")
+        return False
+
+    with open(local_file_path, "rb") as f:
+        content_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    url = API_URL.format(repo=GITHUB_REPO, path=GITHUB_DATA_PATH)
     headers = {
         "Authorization": f"Bearer {GITHUB_TOKEN}",
         "Accept": "application/vnd.github+json",
     }
-    resp = requests.get(f"{API_URL}?ref={GITHUB_BRANCH}", headers=headers, timeout=15)
-    if resp.status_code == 200:
-        return resp.json().get('sha')
-    return None  # fayl hali repo'da yo'q bo'lishi ham mumkin
 
+    try:
+        # Avval mavjud faylning sha'sini olamiz (bo'lmasa, yangi fayl yaratiladi)
+        r = requests.get(url, headers=headers, params={"ref": GITHUB_BRANCH}, timeout=15)
+        sha = r.json().get("sha") if r.status_code == 200 else None
 
-def push_db_to_github():
-    """tournament.db faylini GitHub'ga push qiladi (commit yaratadi)."""
-    if not GITHUB_TOKEN:
-        print("⚠️ GITHUB_TOKEN o'rnatilmagan, push o'tkazib yuborildi")
+        payload = {
+            "message": message,
+            "content": content_b64,
+            "branch": GITHUB_BRANCH,
+        }
+        if sha:
+            payload["sha"] = sha
+
+        resp = requests.put(url, headers=headers, json=payload, timeout=15)
+        if resp.status_code in (200, 201):
+            log.info("✅ %s GitHub'ga push qilindi → Render auto-deploy boshlanishi mumkin", GITHUB_DATA_PATH)
+            return True
+
+        log.error("GitHub push xatosi (%s): %s", resp.status_code, resp.text[:300])
         return False
-    if not os.path.exists(LOCAL_DB_PATH):
-        print("⚠️ tournament.db topilmadi")
+    except Exception as e:
+        log.error("GitHub bilan bog'lanishda xatolik: %s", e)
         return False
-
-    with open(LOCAL_DB_PATH, 'rb') as f:
-        content_b64 = base64.b64encode(f.read()).decode('utf-8')
-
-    sha = _get_remote_sha()
-    headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json",
-    }
-    payload = {
-        "message": f"Avtomatik DB yangilanishi {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        "content": content_b64,
-        "branch": GITHUB_BRANCH,
-    }
-    if sha:
-        payload["sha"] = sha
-
-    resp = requests.put(API_URL, headers=headers, json=payload, timeout=20)
-    if resp.status_code in (200, 201):
-        print("✅ tournament.db GitHub'ga push qilindi → Render auto-deploy boshlanadi")
-        return True
-    else:
-        print(f"❌ GitHub push xatosi: {resp.status_code} {resp.text}")
-        return False
-
-
-def _background_worker():
-    """Fon rejimida ishlaydi: 'dirty' bo'lsa, debounce vaqtidan keyin push qiladi."""
-    global _dirty
-    while True:
-        time.sleep(_DEBOUNCE_SECONDS)
-        with _lock:
-            should_push = _dirty
-            _dirty = False
-        if should_push:
-            push_db_to_github()
-
-
-def start_background_sync():
-    """Flask ilovasi ishga tushganda bir marta chaqiriladi."""
-    if not GITHUB_TOKEN:
-        print("⚠️ GITHUB_TOKEN topilmadi — GitHub sync o'chirilgan")
-        return
-    t = threading.Thread(target=_background_worker, daemon=True)
-    t.start()
-    print(f"🔄 GitHub auto-sync ishga tushdi (har {_DEBOUNCE_SECONDS}s tekshiradi)")
