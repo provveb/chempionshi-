@@ -719,8 +719,8 @@
     },
     {
       "id": 8,
-      "team1_id": 12,
-      "team2_id": 11,
+      "team1_id": null,
+      "team2_id": null,
       "score1": 0,
       "score2": 0,
       "map": "TBD",
