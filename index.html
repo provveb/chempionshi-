@@ -612,6 +612,23 @@ svg{display:inline-block;vertical-align:middle}
   background-size:cover;background-position:center;
 }
 </style>
+  <script>
+  // O'ng tugmani o'chirish
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U o'chirish
+  document.addEventListener('keydown', e => {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key)) ||
+      (e.ctrlKey && e.key === 'U')
+    ) {
+      e.preventDefault();
+      return false;
+    }
+  });
+</script>
+</head>
 </head>
 <body>
 
