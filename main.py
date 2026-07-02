@@ -66,7 +66,15 @@ def change_admin_password():
 # ─── PUBLIC ──────────────────────────────────────────────────────────────────
 @app.route('/api/settings', methods=['GET'])
 def get_settings():
-    return jsonify(store.load()['settings'])
+    d = store.load()
+    s = dict(d['settings'])
+    # Ro'yxatdan o'tish sahifasi va bosh sahifa real-time'da joy sonini
+    # ko'rsatishi uchun hisoblab beramiz (rad etilganlar joy egallamaydi).
+    registered_count = sum(1 for t in d['teams'] if t.get('status') != 'rejected')
+    max_teams = int(s.get('max_teams', 16) or 16)
+    s['registered_count'] = registered_count
+    s['spots_left'] = max(0, max_teams - registered_count)
+    return jsonify(s)
 
 
 @app.route('/api/teams', methods=['GET'])
@@ -129,6 +137,15 @@ def register_team():
     if d['settings'].get('status') != 'registration':
         return jsonify({'ok': False, 'error': 'Ro\'yxatga olish yopiq'}), 400
 
+    # Joy sonini real-time tekshiramiz — status hali 'registration' bo'lsa ham,
+    # jamoalar soni max_teams'ga yetgan/oshgan bo'lsa ro'yxatga olishni to'xtatamiz.
+    max_teams = int(d['settings'].get('max_teams', 16) or 16)
+    registered_count = sum(1 for t in d['teams'] if t.get('status') != 'rejected')
+    if registered_count >= max_teams:
+        d['settings']['status'] = 'closed'
+        store.save(d, commit_message="Ro'yxat avtomatik yopildi (joylar tugadi)")
+        return jsonify({'ok': False, 'error': "Ro'yxat to'ldi, joylar qolmadi"}), 400
+
     required = ['name', 'captain_name', 'captain_steam', 'contact']
     for field in required:
         if not data.get(field, '').strip():
@@ -183,6 +200,14 @@ def register_team():
         })
 
     store.save(d, commit_message=f"Yangi jamoa qo'shildi: {name}")
+
+    # Shu jamoa qo'shilishi bilan joylar tugagan bo'lsa — ro'yxatni
+    # avtomatik yopamiz, admin har safar qo'lda kuzatib turishi shart emas.
+    new_count = sum(1 for t in d['teams'] if t.get('status') != 'rejected')
+    if new_count >= max_teams and d['settings'].get('status') == 'registration':
+        d['settings']['status'] = 'closed'
+        store.save(d, commit_message="Ro'yxat avtomatik yopildi (joylar to'ldi)")
+
     return jsonify({'ok': True, 'team_id': team_id})
 
 
