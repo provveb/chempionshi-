@@ -79,12 +79,12 @@
     },
     {
       "id": 16,
-      "name": "PRO TEAM",
+      "name": "team NOVA",
       "captain_name": "Turgunov",
       "captain_steam": "76561198734960923",
       "captain_discord": "turgunov_lvl",
       "contact": "@turgunovssss",
-      "logo_url": "https://github.com/provveb/chempionshi-/blob/main/pro%20gamersz.jpg?raw=true",
+      "logo_url": "https://github.com/provveb/chempionshi-/blob/main/nova.jpg?raw=true",
       "status": "approved",
       "points": 0,
       "wins": 0,
@@ -514,7 +514,7 @@
     {
       "id": 87,
       "team_id": 16,
-      "nickname": "PRO | LIDER",
+      "nickname": "NOVA | LIDER",
       "steam_id": "76561198734960923",
       "steam_url": "",
       "telegram": "@turgunovssss",
@@ -530,7 +530,7 @@
     {
       "id": 88,
       "team_id": 16,
-      "nickname": "PRO | DIW",
+      "nickname": "NOVA | DIW",
       "steam_id": "76561198710994363",
       "steam_url": "",
       "telegram": "@ti_pro4",
@@ -546,7 +546,7 @@
     {
       "id": 89,
       "team_id": 16,
-      "nickname": "PRO | YAHYO333",
+      "nickname": "NOVA | YAHYO333",
       "steam_id": "76561198759423072",
       "steam_url": "",
       "telegram": "@yhhh333",
@@ -562,7 +562,7 @@
     {
       "id": 90,
       "team_id": 16,
-      "nickname": "PRO | UMAR",
+      "nickname": "NOVA | UMAR",
       "steam_id": "76561199737922631",
       "steam_url": "",
       "telegram": "@Umarbek_18",
@@ -578,7 +578,7 @@
     {
       "id": 91,
       "team_id": 16,
-      "nickname": "PRO | IBR",
+      "nickname": "NOVA  | IBR",
       "steam_id": "76561199805612676",
       "steam_url": "",
       "telegram": "@ibroh1mov_7",
@@ -594,7 +594,7 @@
     {
       "id": 92,
       "team_id": 16,
-      "nickname": "PRO | EMRYSS",
+      "nickname": "NOVA | EMRYSS",
       "steam_id": "76561198728083963",
       "steam_url": "",
       "telegram": "@Shodiy02",
