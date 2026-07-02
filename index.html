@@ -937,7 +937,7 @@ svg{display:inline-block;vertical-align:middle}
     <div class="sec-title">JAMOA RO'YXATDAN O'TISH</div>
     <div class="sec-sub">Barcha ma'lumotlarni to'liq va to'g'ri kiriting</div>
 
-    <div class="steps mb-6">
+    <div class="steps mb-6" id="reg-steps">
       <div class="step-item active" id="si-1">
         <div class="step-num">1</div>
         <span>Jamoa</span>
@@ -953,6 +953,15 @@ svg{display:inline-block;vertical-align:middle}
     </div>
 
     <div id="reg-alert"></div>
+
+    <!-- Ro'yxat yopiq / to'lgan holatda ko'rsatiladi -->
+    <div id="reg-closed" class="card" style="display:none">
+      <div class="card-body" style="text-align:center;padding:40px 20px">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.5" style="margin:0 auto 14px"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <div id="reg-closed-title" style="font-size:16px;font-weight:700;margin-bottom:8px">Ro'yxatga olish yopiq</div>
+        <div id="reg-closed-text" class="text-sm text-d"></div>
+      </div>
+    </div>
 
     <!-- STEP 1 -->
     <div id="rs-1" class="card">
@@ -1722,7 +1731,7 @@ svg{display:inline-block;vertical-align:middle}
                 <div class="form-g"><label>Sovrin fondi</label><input id="ss-prize" type="text"></div>
               </div>
               <div class="form-row">
-                <div class="form-g"><label>Maksimal jamoalar</label><input id="ss-max-t" type="number" min="4" max="64"></div>
+                <div class="form-g"><label>Maksimal jamoalar</label><input id="ss-max-t" type="number" min="4" max="64"><div class="field-hint" id="ss-max-t-hint"></div></div>
                 <div class="form-g"><label>Jamoa tarkibi (max)</label><input id="ss-max-p" type="number" min="5" max="8"></div>
               </div>
               <div class="form-row">
@@ -2434,25 +2443,58 @@ function switchLB(t) {
 }
 
 // ── REGISTER ─────────────────────────────────────────────────────────────────
-function initReg() {
+let regMaxPlayers = 6; // sozlamalardagi max_players_per_team asosida real-time yangilanadi
+
+async function initReg() {
+  const s = await api('/api/settings');
+  regMaxPlayers = Math.max(5, parseInt(s.max_players_per_team) || 6);
+
+  const isOpen = s.status === 'registration' && (s.spots_left === undefined || s.spots_left > 0);
+  const closedEl = document.getElementById('reg-closed');
+  const stepsEl = document.getElementById('reg-steps');
+  const rs1 = document.getElementById('rs-1');
+  const rs2 = document.getElementById('rs-2');
+  const rs3 = document.getElementById('rs-3');
+
+  if(!isOpen){
+    const full = s.status === 'registration' && s.spots_left <= 0;
+    document.getElementById('reg-closed-title').textContent = full ? "Barcha joylar band" : "Ro'yxatga olish yopiq";
+    document.getElementById('reg-closed-text').textContent = full
+      ? `Turnirga maksimal jamoalar soni (${s.max_teams || ''}) allaqachon to'ldi. Iltimos, keyingi turnirlarni kuzatib boring.`
+      : "Hozirda yangi jamoalar qabul qilinmayapti. Iltimos, keyinroq qayta urinib ko'ring.";
+    closedEl.style.display = '';
+    if(stepsEl) stepsEl.style.display = 'none';
+    if(rs1) rs1.style.display = 'none';
+    if(rs2) rs2.style.display = 'none';
+    if(rs3) rs3.style.display = 'none';
+    return;
+  }
+
+  closedEl.style.display = 'none';
+  if(stepsEl) stepsEl.style.display = '';
+  if(rs1) rs1.style.display = '';
+
+  const hint = document.querySelector('#rs-2 .alert-info');
+  if(hint) hint.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg> Kamida 5 ta o'yinchi (1 lider + 4 o'yinchi), jami maksimum ${regMaxPlayers} ta (zaxiralar bilan). Telegram va Discord kiritilishi shart.`;
+
   if(pCount===0) for(let i=0;i<5;i++) addPlayer();
   updateAddButton();
 }
 
 function addPlayer() {
   const current = document.querySelectorAll('#players-wrap .p-row').length;
-  if(current >= 6) {
-    setAlert('<b>Maksimum:</b> 1 lider + 4 o\'yinchi + 1 zaxira, jami 6 ta o\'yinchi qo\'shish mumkin!');
+  if(current >= regMaxPlayers) {
+    setAlert(`<b>Maksimum:</b> jami ${regMaxPlayers} ta o'yinchi qo'shish mumkin!`);
     return;
   }
   pCount++;
   const id = pCount;
-  const isReserve = (current === 5);
+  const isReserve = (current >= 5);
   const isLeader  = (current === 0);
   const isPlayer  = !isLeader && !isReserve;
 
-  // Separator line before reserve
-  if(isReserve) {
+  // Separator line before the first reserve player
+  if(isReserve && current === 5) {
     const sep = document.createElement('div');
     sep.id = 'reserve-sep';
     sep.style.cssText = 'margin:16px 0 20px;border-top:1px dashed var(--border3);position:relative;';
@@ -2498,10 +2540,10 @@ function updateAddButton() {
   const current = document.querySelectorAll('#players-wrap .p-row').length;
   const btn = document.getElementById('add-player-btn');
   if(!btn) return;
-  if(current >= 6) {
+  if(current >= regMaxPlayers) {
     btn.disabled = true;
     btn.style.opacity = '0.4';
-    btn.title = 'Maksimum 6 ta o\'yinchi';
+    btn.title = `Maksimum ${regMaxPlayers} ta o'yinchi`;
   } else {
     btn.disabled = false;
     btn.style.opacity = '';
@@ -2944,6 +2986,8 @@ async function loadSettings(){
   document.getElementById('ss-status').value=s.status||'registration';
   document.getElementById('ss-stage').value=s.stage||'';
   document.getElementById('ss-rules').value=s.rules||'';
+  const hint = document.getElementById('ss-max-t-hint');
+  if(hint) hint.textContent = `Hozir: ${s.registered_count ?? 0} ta jamoa ro'yxatda (${s.spots_left ?? '?'} joy qoldi). Joylar tugasa ro'yxat avtomatik yopiladi.`;
 }
 
 async function saveSettings(btn){
