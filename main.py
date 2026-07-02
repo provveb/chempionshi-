@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import wraps
 
 import store
+import github_sync
 
 app = Flask(__name__, static_folder='.')
 app.secret_key = 'cs2uz_pro_vveb_secret_2024_x3d'
@@ -339,6 +340,26 @@ def update_player_stats(player_id):
 
 
 # ─── ADMIN: MATCHES ──────────────────────────────────────────────────────────
+def _revert_match_stats(d, match):
+    """Tugagan o'yin natijasi jamoalarga bergan ta'sirini (win/loss/points/maps) bekor qiladi.
+    O'yin o'chirilganda yoki natija qayta kiritilganda ishlatiladi."""
+    winner_id = match.get('winner_id')
+    if not winner_id:
+        return
+    t1_id, t2_id = match.get('team1_id'), match.get('team2_id')
+    loser_id = t2_id if winner_id == t1_id else t1_id
+    s1, s2 = match.get('score1', 0), match.get('score2', 0)
+    winner = next((t for t in d['teams'] if t['id'] == winner_id), None)
+    loser = next((t for t in d['teams'] if t['id'] == loser_id), None)
+    if winner:
+        winner['wins'] = max(0, winner.get('wins', 0) - 1)
+        winner['points'] = max(0, winner.get('points', 0) - 3)
+        winner['maps_won'] = max(0, winner.get('maps_won', 0) - max(s1, s2))
+    if loser:
+        loser['losses'] = max(0, loser.get('losses', 0) - 1)
+        loser['maps_lost'] = max(0, loser.get('maps_lost', 0) - min(s1, s2))
+
+
 @app.route('/api/admin/matches', methods=['POST'])
 @admin_required
 def create_match():
@@ -369,10 +390,18 @@ def update_result(match_id):
     match = next((m for m in d['matches'] if m['id'] == match_id), None)
     if not match:
         return jsonify({'ok': False, 'error': 'Topilmadi'}), 404
+
+    # Agar bu o'yin ilgari tugagan bo'lsa (natija qayta kiritilayotgan bo'lsa),
+    # avval eski natijaning jamoalarga bergan ta'sirini bekor qilamiz —
+    # aks holda ball/win/loss ikki marta hisoblanib qoladi.
+    if match.get('status') == 'finished' and match.get('winner_id'):
+        _revert_match_stats(d, match)
+
     s1, s2 = int(data['score1']), int(data['score2'])
     t1_id, t2_id = int(data['team1_id']), int(data['team2_id'])
     winner_id = t1_id if s1 > s2 else t2_id if s2 > s1 else None
     match.update({
+        'team1_id': t1_id, 'team2_id': t2_id,
         'score1': s1, 'score2': s2, 'winner_id': winner_id,
         'status': 'finished', 'played_at': datetime.utcnow().isoformat(),
     })
@@ -385,6 +414,16 @@ def update_result(match_id):
         winner['maps_won'] += max(s1, s2)
         loser['losses'] += 1
         loser['maps_lost'] += min(s1, s2)
+
+    # Bracket o'yini bo'lsa, g'olibni avtomatik keyingi bosqichga o'tkazamiz
+    # (ilgari faqat /api/admin/bracket/<pos>/result shu ishni bajarardi,
+    # shu sabab umumiy o'yinlar ro'yxatidan natija kiritilganda o'tish sodir bo'lmasdi)
+    bracket_pos = match.get('bracket_pos')
+    if winner_id and bracket_pos and bracket_pos in BRACKET_ADVANCE:
+        next_pos, next_slot = BRACKET_ADVANCE[bracket_pos]
+        nm = _get_or_create_bracket_match(d, next_pos)
+        nm['team1_id' if next_slot == 1 else 'team2_id'] = winner_id
+
     store.save(d, commit_message=f"O'yin natijasi kiritildi (id={match_id})")
     return jsonify({'ok': True})
 
@@ -393,6 +432,19 @@ def update_result(match_id):
 @admin_required
 def delete_match(match_id):
     d = store.load()
+    match = next((m for m in d['matches'] if m['id'] == match_id), None)
+    if match and match.get('status') == 'finished':
+        # O'yin o'chirilishidan oldin uning ball/win/loss/maps'ga bergan
+        # ta'sirini bekor qilamiz, aks holda statistika eskicha qolib ketadi.
+        _revert_match_stats(d, match)
+        # Agar bu o'yin natijasi keyingi bracket bosqichiga g'olibni
+        # o'tkazgan bo'lsa, o'sha slotni ham tozalaymiz.
+        bracket_pos = match.get('bracket_pos')
+        if bracket_pos and bracket_pos in BRACKET_ADVANCE:
+            next_pos, next_slot = BRACKET_ADVANCE[bracket_pos]
+            nm = _find_bracket_match(d, next_pos)
+            if nm and nm.get('status') != 'finished':
+                nm['team1_id' if next_slot == 1 else 'team2_id'] = None
     d['matches'] = [m for m in d['matches'] if m['id'] != match_id]
     store.save(d, commit_message=f"O'yin o'chirildi (id={match_id})")
     return jsonify({'ok': True})
@@ -471,6 +523,8 @@ def save_bracket_result(bracket_pos):
     s1, s2 = int(data['score1']), int(data['score2'])
     if s1 == s2:
         return jsonify({'ok': False, 'error': "Durrang bo'lishi mumkin emas"}), 400
+    if m.get('status') == 'finished' and m.get('winner_id'):
+        _revert_match_stats(d, m)
     winner_id = m['team1_id'] if s1 > s2 else m['team2_id']
     loser_id = m['team2_id'] if winner_id == m['team1_id'] else m['team1_id']
     m.update({
@@ -532,6 +586,23 @@ def admin_overview():
         'finished_matches': sum(1 for m in d['matches'] if m.get('status') == 'finished'),
     }
     return jsonify(r)
+
+
+@app.route('/api/admin/publish', methods=['POST'])
+@admin_required
+def publish_changes():
+    """Admin panelning istalgan bo'limidagi 'Saqlash' tugmasi shu endpoint'ni
+    chaqiradi. Shu paytgacha to'plangan barcha mahalliy o'zgarishlar (qaysi
+    bo'limda qilingan bo'lishidan qat'i nazar) bitta GitHub commit sifatida
+    yuboriladi va Render auto-deploy shu commit asosida qayta ishga tushadi."""
+    if not github_sync.is_configured():
+        return jsonify({'ok': False, 'error': "GitHub sozlanmagan (GITHUB_TOKEN / GITHUB_REPO yo'q)"}), 400
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or "Turnir ma'lumotlari yangilandi").strip()
+    ok = store.publish(message)
+    if not ok:
+        return jsonify({'ok': False, 'error': "GitHub'ga yuborishda xatolik yuz berdi"}), 502
+    return jsonify({'ok': True})
 
 
 @app.route('/')
