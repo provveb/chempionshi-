@@ -89,11 +89,23 @@ def load() -> dict:
             return json.load(f)
 
 
-def save(data: dict, commit_message: str = "Update tournament data") -> None:
-    """Mahalliy faylga yozadi, so'ng GitHub'ga commit qiladi (sozlangan bo'lsa)."""
+def save(data: dict, commit_message: str = "Update tournament data", publish: bool = False) -> None:
+    """Har doim mahalliy faylga yozadi. GitHub'ga esa faqat publish=True
+    bo'lganda (ya'ni admin panelda 'Saqlash / GitHub'ga yuborish' tugmasi
+    bosilganda) commit qiladi — shu orqali har bir mayda amal alohida
+    deploy'ni ishga tushirib yubormaydi, o'zgarishlar bittalab to'planib
+    boradi."""
     with _lock:
         _write_local(data)
-    push_to_github(DATA_FILE, commit_message)
+    if publish:
+        push_to_github(DATA_FILE, commit_message)
+
+
+def publish(commit_message: str = "Turnir ma'lumotlari yangilandi") -> bool:
+    """Joriy mahalliy data.json holatini GitHub'ga bittalab commit qiladi
+    (admin 'Saqlash' tugmasini bosganda chaqiriladi)."""
+    with _lock:
+        return push_to_github(DATA_FILE, commit_message)
 
 
 def next_id(data: dict, kind: str) -> int:
